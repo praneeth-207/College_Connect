@@ -253,7 +253,7 @@ public class CollegeConnectApp {
                     params.add("%" + search + "%");
                 }
 
-                sql.append(" ORDER BY college_id DESC");
+                sql.append(" ORDER BY college_id ASC");
 
                 PreparedStatement ps = con.prepareStatement(sql.toString());
 
