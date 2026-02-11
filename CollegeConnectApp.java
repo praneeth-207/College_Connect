@@ -9,7 +9,7 @@ public class CollegeConnectApp {
     // --- CONFIGURATION ---
     private static final String DB_URL = "jdbc:mysql://localhost:3306/college_connect_db";
     private static final String DB_USER = "root";
-    private static final String DB_PASS = "root"; // <--- UPDATE THIS!
+    private static final String DB_PASS = "root"; 
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(LoginFrame::new);
