@@ -1,7 +1,9 @@
 import java.awt.*;
+import java.awt.event.*;
 import java.io.File;
 import java.sql.*;
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 public class CollegeConnectApp {
@@ -9,9 +11,29 @@ public class CollegeConnectApp {
     // --- CONFIGURATION ---
     private static final String DB_URL = "jdbc:mysql://localhost:3306/college_connect_db";
     private static final String DB_USER = "root";
-    private static final String DB_PASS = "root"; 
+    private static final String DB_PASS = "root";
 
     public static void main(String[] args) {
+        // ✅ Modern L&F + subtle theme tweaks (attractive UI)
+        try {
+            UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
+
+            Font f = new Font("Segoe UI", Font.PLAIN, 13);
+            java.util.Enumeration<Object> keys = UIManager.getDefaults().keys();
+            while (keys.hasMoreElements()) {
+                Object key = keys.nextElement();
+                Object val = UIManager.get(key);
+                if (val instanceof javax.swing.plaf.FontUIResource) {
+                    UIManager.put(key, new javax.swing.plaf.FontUIResource(f));
+                }
+            }
+
+            UIManager.put("control", new Color(248, 250, 252));
+            UIManager.put("nimbusBase", new Color(99, 102, 241));
+            UIManager.put("nimbusBlueGrey", new Color(226, 232, 240));
+            UIManager.put("text", new Color(15, 23, 42));
+        } catch (Exception ignored) {}
+
         SwingUtilities.invokeLater(LoginFrame::new);
     }
 
@@ -32,6 +54,196 @@ public class CollegeConnectApp {
     }
 
     // =========================================================================
+    // THEME (UI ONLY - DOES NOT CHANGE ANY FEATURE)
+    // =========================================================================
+    static class Theme {
+        static final Color BG = new Color(248, 250, 252);
+        static final Color CARD = Color.WHITE;
+        static final Color TEXT = new Color(15, 23, 42);
+        static final Color MUTED = new Color(100, 116, 139);
+        static final Color BORDER = new Color(226, 232, 240);
+        static final Color HEADER = new Color(241, 245, 249);
+
+        static final Color PRIMARY = new Color(99, 102, 241);
+        static final Color PRIMARY_DARK = new Color(79, 70, 229);
+
+        static final Color ACCENT = new Color(16, 185, 129);
+        static final Color ACCENT_DARK = new Color(5, 150, 105);
+
+        static final Color WARN = new Color(245, 158, 11);
+        static final Color WARN_DARK = new Color(217, 119, 6);
+
+        static final Color DANGER = new Color(239, 68, 68);
+        static final Color DANGER_DARK = new Color(220, 38, 38);
+
+        static final Color SLATE = new Color(100, 116, 139);
+        static final Color SLATE_DARK = new Color(71, 85, 105);
+
+        static final Font FONT_NORMAL = new Font("Segoe UI", Font.PLAIN, 13);
+        static final Font FONT_BOLD = new Font("Segoe UI", Font.BOLD, 13);
+        static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 16);
+
+        static void applyFrame(JFrame f) {
+            f.getContentPane().setBackground(BG);
+        }
+
+        static void applyDialog(JDialog d) {
+            d.getContentPane().setBackground(BG);
+        }
+
+        static class ShadowBorder extends javax.swing.border.AbstractBorder {
+            private final int pad = 10;
+            @Override public Insets getBorderInsets(Component c) { return new Insets(pad, pad, pad, pad); }
+            @Override public Insets getBorderInsets(Component c, Insets insets) {
+                insets.left = insets.right = insets.top = insets.bottom = pad;
+                return insets;
+            }
+            @Override public void paintBorder(Component c, Graphics g, int x, int y, int w, int h) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                for (int i = 0; i < 8; i++) {
+                    g2.setColor(new Color(15, 23, 42, 12 - i));
+                    g2.drawRoundRect(x + i, y + i, w - i * 2 - 1, h - i * 2 - 1, 18, 18);
+                }
+                g2.dispose();
+            }
+        }
+
+        static void styleCard(JPanel p) {
+            p.setBackground(CARD);
+            p.setBorder(BorderFactory.createCompoundBorder(
+                    new ShadowBorder(),
+                    BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(BORDER),
+                            BorderFactory.createEmptyBorder(18, 18, 18, 18)
+                    )
+            ));
+        }
+
+        static void styleLabel(JLabel l) {
+            l.setForeground(TEXT);
+            l.setFont(FONT_NORMAL);
+        }
+
+        static void styleTitle(JLabel l) {
+            l.setForeground(TEXT);
+            l.setFont(FONT_TITLE);
+        }
+
+        static void styleField(JTextField t) {
+            t.setFont(FONT_NORMAL);
+            t.setBackground(Color.WHITE);
+            t.setForeground(TEXT);
+            t.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(BORDER),
+                    BorderFactory.createEmptyBorder(6, 10, 6, 10)
+            ));
+        }
+
+        static void styleTextArea(JTextArea a) {
+            a.setFont(FONT_NORMAL);
+            a.setForeground(TEXT);
+            a.setBackground(Color.WHITE);
+            a.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(BORDER),
+                    BorderFactory.createEmptyBorder(8, 10, 8, 10)
+            ));
+        }
+
+        static void styleCombo(JComboBox<?> c) {
+            c.setFont(FONT_NORMAL);
+        }
+
+        static void styleButton(JButton b, Color bg, Color hoverBg) {
+            b.setFont(FONT_BOLD);
+            b.setBackground(bg);
+            b.setForeground(Color.WHITE);
+            b.setFocusPainted(false);
+            b.setOpaque(true);
+            b.setBorderPainted(false);
+            b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            b.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
+
+            b.addMouseListener(new MouseAdapter() {
+                @Override public void mouseEntered(MouseEvent e) { b.setBackground(hoverBg); }
+                @Override public void mouseExited(MouseEvent e) { b.setBackground(bg); }
+            });
+        }
+
+        static void styleTable(JTable table) {
+            table.setFont(FONT_NORMAL);
+            table.setRowHeight(28);
+            table.setShowHorizontalLines(true);
+            table.setShowVerticalLines(false);
+            table.setGridColor(BORDER);
+            table.setSelectionBackground(new Color(219, 234, 254));
+            table.setSelectionForeground(TEXT);
+
+            if (table.getTableHeader() != null) {
+                table.getTableHeader().setFont(FONT_BOLD);
+                table.getTableHeader().setBackground(HEADER);
+                table.getTableHeader().setForeground(TEXT);
+            }
+
+            // ✅ Zebra rows + padding
+            DefaultTableCellRenderer r = new DefaultTableCellRenderer() {
+                @Override
+                public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int row, int col) {
+                    Component c = super.getTableCellRendererComponent(t, v, sel, foc, row, col);
+                    if (!sel) c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(248, 250, 252));
+                    setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
+                    return c;
+                }
+            };
+            table.setDefaultRenderer(Object.class, r);
+        }
+
+        static void styleTabs(JTabbedPane tabs) {
+            tabs.setFont(FONT_BOLD);
+            tabs.setBackground(BG);
+        }
+
+        static JScrollPane styleScroll(JScrollPane sp) {
+            sp.setBorder(BorderFactory.createLineBorder(BORDER));
+            return sp;
+        }
+
+        // ✅ Gradient AppBar
+        static JPanel appBar(String title, String subtitle) {
+            JPanel bar = new JPanel(new BorderLayout()) {
+                @Override protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                    GradientPaint gp = new GradientPaint(0, 0, PRIMARY, getWidth(), 0, ACCENT);
+                    g2.setPaint(gp);
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                    g2.dispose();
+                }
+            };
+            bar.setBorder(BorderFactory.createEmptyBorder(14, 18, 14, 18));
+
+            JLabel t = new JLabel(title);
+            t.setForeground(Color.WHITE);
+            t.setFont(new Font("Segoe UI", Font.BOLD, 18));
+
+            JLabel s = new JLabel(subtitle);
+            s.setForeground(new Color(245, 245, 255));
+            s.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+
+            JPanel left = new JPanel();
+            left.setOpaque(false);
+            left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+            left.add(t);
+            left.add(Box.createVerticalStrut(4));
+            left.add(s);
+
+            bar.add(left, BorderLayout.WEST);
+            return bar;
+        }
+    }
+
+    // =========================================================================
     // 1. LOGIN SCREEN (NO STATE/COURSE HERE)
     // =========================================================================
     static class LoginFrame extends JFrame {
@@ -40,35 +252,94 @@ public class CollegeConnectApp {
 
         public LoginFrame() {
             setTitle("College Connect Login");
-            setSize(420, 280);
+            setSize(760, 420);
             setDefaultCloseOperation(EXIT_ON_CLOSE);
             setLocationRelativeTo(null);
-            setLayout(new BorderLayout(10, 10));
 
-            add(new JLabel("Welcome to College Connect", SwingConstants.CENTER), BorderLayout.NORTH);
+            Theme.applyFrame(this);
+            add(Theme.appBar("College Connect", "Secure login • Smart filtering • Compare colleges"), BorderLayout.NORTH);
 
-            JPanel pnl = new JPanel(new GridLayout(2, 2, 10, 10));
-            pnl.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+            JPanel wrapper = new JPanel(new GridBagLayout());
+            wrapper.setBackground(Theme.BG);
+            add(wrapper, BorderLayout.CENTER);
 
-            pnl.add(new JLabel("Username:"));
+            JPanel card = new JPanel();
+            card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+            Theme.styleCard(card);
+            card.setPreferredSize(new Dimension(520, 280));
+
+            JLabel title = new JLabel("Welcome Back 👋", SwingConstants.CENTER);
+            title.setAlignmentX(Component.CENTER_ALIGNMENT);
+            Theme.styleTitle(title);
+
+            JLabel sub = new JLabel("Login to explore colleges and apply quickly", SwingConstants.CENTER);
+            sub.setAlignmentX(Component.CENTER_ALIGNMENT);
+            sub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            sub.setForeground(Theme.MUTED);
+
+            card.add(title);
+            card.add(Box.createVerticalStrut(6));
+            card.add(sub);
+            card.add(Box.createVerticalStrut(18));
+
+            JPanel form = new JPanel(new GridLayout(2, 2, 10, 14));
+            form.setOpaque(false);
+
+            JLabel lblUser = new JLabel("Username:");
+            Theme.styleLabel(lblUser);
+
             txtUser = new JTextField();
-            pnl.add(txtUser);
+            Theme.styleField(txtUser);
+            txtUser.setPreferredSize(new Dimension(260, 30));
+            JPanel userWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            userWrap.setOpaque(false);
+            userWrap.add(txtUser);
 
-            pnl.add(new JLabel("Password:"));
+            JLabel lblPass = new JLabel("Password:");
+            Theme.styleLabel(lblPass);
+
             txtPass = new JPasswordField();
-            pnl.add(txtPass);
+            Theme.styleField(txtPass);
+            txtPass.setPreferredSize(new Dimension(260, 30));
+            JPanel passWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            passWrap.setOpaque(false);
+            passWrap.add(txtPass);
 
-            add(pnl, BorderLayout.CENTER);
+            form.add(lblUser);
+            form.add(userWrap);
+            form.add(lblPass);
+            form.add(passWrap);
 
-            JPanel btns = new JPanel(new FlowLayout());
+            card.add(form);
+            card.add(Box.createVerticalStrut(10));
+
+            JCheckBox showPass = new JCheckBox("Show Password");
+            showPass.setOpaque(false);
+            showPass.setFont(Theme.FONT_NORMAL);
+            showPass.setForeground(Theme.MUTED);
+            showPass.setAlignmentX(Component.CENTER_ALIGNMENT);
+            showPass.addActionListener(e -> txtPass.setEchoChar(showPass.isSelected() ? (char) 0 : '•'));
+            card.add(showPass);
+
+            card.add(Box.createVerticalStrut(14));
+
+            JPanel btns = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+            btns.setOpaque(false);
+
             JButton btnLogin = new JButton("Login");
             JButton btnReg = new JButton("Register");
-            btns.add(btnLogin);
-            btns.add(btnReg);
-            add(btns, BorderLayout.SOUTH);
+            Theme.styleButton(btnLogin, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            Theme.styleButton(btnReg, Theme.ACCENT, Theme.ACCENT_DARK);
 
             btnLogin.addActionListener(e -> login());
             btnReg.addActionListener(e -> register());
+
+            btns.add(btnLogin);
+            btns.add(btnReg);
+
+            card.add(btns);
+
+            wrapper.add(card);
 
             setVisible(true);
         }
@@ -139,12 +410,19 @@ public class CollegeConnectApp {
             this.user = user;
 
             setTitle("Student Dashboard - " + user);
-            setSize(1200, 720);
+            setSize(1250, 740);
             setDefaultCloseOperation(EXIT_ON_CLOSE);
             setLocationRelativeTo(null);
 
-            // Top Panel
-            JPanel top = new JPanel();
+            Theme.applyFrame(this);
+
+            // North wrapper: AppBar + filters
+            JPanel north = new JPanel(new BorderLayout());
+            north.setBackground(Theme.BG);
+            north.add(Theme.appBar("Student Dashboard", "Filter by state/course • Search • Compare • Apply"), BorderLayout.NORTH);
+
+            JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+            top.setBackground(Theme.BG);
 
             cmbState = new JComboBox<>(new String[]{
                     "All States",
@@ -152,13 +430,34 @@ public class CollegeConnectApp {
                     "Maharashtra", "Gujarat", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh",
                     "West Bengal", "Odisha", "Punjab", "Haryana", "Bihar", "Assam", "Delhi"
             });
+            Theme.styleCombo(cmbState);
 
             cmbCourse = new JComboBox<>(new String[]{
                     "All Courses",
                     "B.Tech", "M.Tech", "MBA", "BBA", "B.Sc", "M.Sc", "BCA", "MCA", "MBBS", "B.Com", "M.Com"
             });
+            Theme.styleCombo(cmbCourse);
 
-            txtSearch = new JTextField(15);
+            txtSearch = new JTextField(16);
+            Theme.styleField(txtSearch);
+
+            // Placeholder behavior
+            txtSearch.setForeground(Theme.MUTED);
+            txtSearch.setText("Search college name...");
+            txtSearch.addFocusListener(new FocusAdapter() {
+                @Override public void focusGained(FocusEvent e) {
+                    if ("Search college name...".equals(txtSearch.getText())) {
+                        txtSearch.setText("");
+                        txtSearch.setForeground(Theme.TEXT);
+                    }
+                }
+                @Override public void focusLost(FocusEvent e) {
+                    if (txtSearch.getText().trim().isEmpty()) {
+                        txtSearch.setText("Search college name...");
+                        txtSearch.setForeground(Theme.MUTED);
+                    }
+                }
+            });
 
             JButton btnFilter = new JButton("Apply Filter");
             JButton btnClear = new JButton("Clear");
@@ -166,39 +465,43 @@ public class CollegeConnectApp {
             JButton btnCompare = new JButton("Compare");
             JButton btnLogout = new JButton("Logout");
 
-            top.add(new JLabel("State:"));
-            top.add(cmbState);
-            top.add(new JLabel("Course:"));
-            top.add(cmbCourse);
+            Theme.styleButton(btnFilter, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            Theme.styleButton(btnClear, Theme.SLATE, Theme.SLATE_DARK);
+            Theme.styleButton(btnView, Theme.ACCENT, Theme.ACCENT_DARK);
+            Theme.styleButton(btnCompare, Theme.WARN, Theme.WARN_DARK);
+            Theme.styleButton(btnLogout, Theme.DANGER, Theme.DANGER_DARK);
 
-            top.add(new JLabel("Search:"));
-            top.add(txtSearch);
+            JLabel s1 = new JLabel("State:");
+            JLabel s2 = new JLabel("Course:");
+            JLabel s3 = new JLabel("Search:");
+            Theme.styleLabel(s1);
+            Theme.styleLabel(s2);
+            Theme.styleLabel(s3);
 
-            top.add(btnFilter);
-            top.add(btnClear);
-            top.add(btnView);
-            top.add(btnCompare);
-            top.add(btnLogout);
+            top.add(s1); top.add(cmbState);
+            top.add(s2); top.add(cmbCourse);
+            top.add(s3); top.add(txtSearch);
+            top.add(btnFilter); top.add(btnClear);
+            top.add(btnView); top.add(btnCompare); top.add(btnLogout);
 
-            add(top, BorderLayout.NORTH);
+            north.add(top, BorderLayout.SOUTH);
+            add(north, BorderLayout.NORTH);
 
-            // Table
             model = new DefaultTableModel(new String[]{"ID", "Name", "State", "Course", "Location", "Fees"}, 0);
             table = new JTable(model);
-
-            // multi-select for compare
+            Theme.styleTable(table);
             table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-            add(new JScrollPane(table), BorderLayout.CENTER);
+            add(Theme.styleScroll(new JScrollPane(table)), BorderLayout.CENTER);
 
-            // Load all initially
             loadColleges();
 
             btnFilter.addActionListener(e -> loadColleges());
             btnClear.addActionListener(e -> {
                 cmbState.setSelectedIndex(0);
                 cmbCourse.setSelectedIndex(0);
-                txtSearch.setText("");
+                txtSearch.setText("Search college name...");
+                txtSearch.setForeground(Theme.MUTED);
                 loadColleges();
             });
 
@@ -225,14 +528,12 @@ public class CollegeConnectApp {
             String selectedState = (String) cmbState.getSelectedItem();
             String selectedCourse = (String) cmbCourse.getSelectedItem();
             String search = txtSearch.getText().trim();
+            if ("Search college name...".equals(search)) search = "";
 
-            // Build query with optional filters
             StringBuilder sql = new StringBuilder(
                     "SELECT college_id, name, state, course, location, fees FROM colleges WHERE 1=1"
             );
 
-            // we'll use PreparedStatement
-            // params will be added only when filter is applied
             try (Connection con = getConnection()) {
                 if (con == null) return;
 
@@ -242,24 +543,18 @@ public class CollegeConnectApp {
                     sql.append(" AND state = ?");
                     params.add(selectedState);
                 }
-
                 if (selectedCourse != null && !"All Courses".equals(selectedCourse)) {
                     sql.append(" AND course = ?");
                     params.add(selectedCourse);
                 }
-
                 if (!search.isEmpty()) {
                     sql.append(" AND name LIKE ?");
                     params.add("%" + search + "%");
                 }
 
                 sql.append(" ORDER BY college_id ASC");
-
                 PreparedStatement ps = con.prepareStatement(sql.toString());
-
-                for (int i = 0; i < params.size(); i++) {
-                    ps.setObject(i + 1, params.get(i));
-                }
+                for (int i = 0; i < params.size(); i++) ps.setObject(i + 1, params.get(i));
 
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
@@ -296,9 +591,7 @@ public class CollegeConnectApp {
             }
 
             int[] ids = new int[rows.length];
-            for (int i = 0; i < rows.length; i++) {
-                ids[i] = (int) model.getValueAt(rows[i], 0);
-            }
+            for (int i = 0; i < rows.length; i++) ids[i] = (int) model.getValueAt(rows[i], 0);
 
             new CompareCollegesDialog(this, ids);
         }
@@ -316,24 +609,39 @@ public class CollegeConnectApp {
             this.collegeId = id;
             this.studentName = studentName;
 
-            setSize(900, 700);
+            setSize(980, 720);
             setLocationRelativeTo(parent);
 
+            Theme.applyDialog(this);
+
+            JPanel north = new JPanel(new BorderLayout());
+            north.setBackground(Theme.BG);
+            north.add(Theme.appBar("College Profile", "Overview • Facilities • Hostels • Placements"), BorderLayout.NORTH);
+            add(north, BorderLayout.NORTH);
+
             JTabbedPane tabs = new JTabbedPane();
+            Theme.styleTabs(tabs);
 
             JPanel pnlOverview = new JPanel(new BorderLayout());
-            JPanel pnlInfo = new JPanel();
-            pnlInfo.setLayout(new BoxLayout(pnlInfo, BoxLayout.Y_AXIS));
+            pnlOverview.setBackground(Theme.BG);
+
+            JPanel card = new JPanel();
+            card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+            Theme.styleCard(card);
 
             JLabel lblImage = new JLabel();
-            lblImage.setPreferredSize(new Dimension(800, 250));
+            lblImage.setPreferredSize(new Dimension(860, 250));
+            lblImage.setHorizontalAlignment(SwingConstants.CENTER);
+            lblImage.setBorder(BorderFactory.createLineBorder(Theme.BORDER));
 
             JTextArea txtDesc = new JTextArea(10, 50);
             txtDesc.setEditable(false);
+            txtDesc.setLineWrap(true);
+            txtDesc.setWrapStyleWord(true);
+            Theme.styleTextArea(txtDesc);
 
             JButton btnApply = new JButton("Apply for Admission");
-            btnApply.setFont(new Font("Arial", Font.BOLD, 16));
-            btnApply.setBackground(Color.ORANGE);
+            Theme.styleButton(btnApply, Theme.WARN, Theme.WARN_DARK);
 
             try (Connection con = getConnection()) {
                 if (con != null) {
@@ -350,20 +658,21 @@ public class CollegeConnectApp {
                         if (imgPath != null && !imgPath.isEmpty() && new File(imgPath).exists()) {
                             ImageIcon icon = new ImageIcon(
                                     new ImageIcon(imgPath).getImage().getScaledInstance(
-                                            600, 200, Image.SCALE_SMOOTH
+                                            820, 240, Image.SCALE_SMOOTH
                                     )
                             );
                             lblImage.setIcon(icon);
+                            lblImage.setText("");
                         } else {
+                            lblImage.setIcon(null);
                             lblImage.setText("No College Image");
-                            lblImage.setHorizontalAlignment(SwingConstants.CENTER);
                         }
 
                         txtDesc.setText(
                                 "About College:\n" + rs.getString("description") +
-                                "\n\nState: " + rs.getString("state") +
-                                "\nCourse: " + rs.getString("course") +
-                                "\n\nAnnual Fees: Rs. " + rs.getDouble("fees")
+                                        "\n\nState: " + rs.getString("state") +
+                                        "\nCourse: " + rs.getString("course") +
+                                        "\n\nAnnual Fees: Rs. " + rs.getDouble("fees")
                         );
                     }
                 }
@@ -371,26 +680,36 @@ public class CollegeConnectApp {
                 e.printStackTrace();
             }
 
-            pnlInfo.add(lblImage);
-            pnlInfo.add(new JScrollPane(txtDesc));
-            pnlInfo.add(btnApply);
-            pnlOverview.add(pnlInfo, BorderLayout.CENTER);
+            card.add(lblImage);
+            card.add(Box.createVerticalStrut(10));
+            card.add(Theme.styleScroll(new JScrollPane(txtDesc)));
+            card.add(Box.createVerticalStrut(12));
+
+            JPanel applyRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            applyRow.setOpaque(false);
+            applyRow.add(btnApply);
+            card.add(applyRow);
+
+            pnlOverview.add(card, BorderLayout.CENTER);
 
             DefaultTableModel facModel = new DefaultTableModel(new String[]{"Facility Name"}, 0);
             JTable facTable = new JTable(facModel);
+            Theme.styleTable(facTable);
 
             DefaultTableModel hosModel = new DefaultTableModel(new String[]{"Room Type", "Fee (per year)"}, 0);
             JTable hosTable = new JTable(hosModel);
+            Theme.styleTable(hosTable);
 
-            JPanel pnlPlace = new JPanel(new GridLayout(0, 3, 10, 10));
+            JPanel pnlPlace = new JPanel(new GridLayout(0, 3, 12, 12));
+            pnlPlace.setBackground(Theme.BG);
             loadExtraDetails(facModel, hosModel, pnlPlace);
 
             tabs.addTab("Overview", pnlOverview);
-            tabs.addTab("Facilities", new JScrollPane(facTable));
-            tabs.addTab("Hostels", new JScrollPane(hosTable));
-            tabs.addTab("Placements", new JScrollPane(pnlPlace));
+            tabs.addTab("Facilities", Theme.styleScroll(new JScrollPane(facTable)));
+            tabs.addTab("Hostels", Theme.styleScroll(new JScrollPane(hosTable)));
+            tabs.addTab("Placements", Theme.styleScroll(new JScrollPane(pnlPlace)));
 
-            add(tabs);
+            add(tabs, BorderLayout.CENTER);
 
             btnApply.addActionListener(e -> {
                 try (Connection con = getConnection()) {
@@ -436,15 +755,18 @@ public class CollegeConnectApp {
 
                 while (rs.next()) {
                     JPanel card = new JPanel(new BorderLayout());
-                    card.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+                    Theme.styleCard(card);
 
                     String path = cleanPath(rs.getString("student_image_path"));
                     JLabel img = new JLabel("No Photo", SwingConstants.CENTER);
+                    img.setPreferredSize(new Dimension(120, 120));
+                    img.setBorder(BorderFactory.createLineBorder(Theme.BORDER));
+                    img.setForeground(Theme.MUTED);
 
                     if (path != null && !path.isEmpty() && new File(path).exists()) {
                         ImageIcon scaled = new ImageIcon(
                                 new ImageIcon(path).getImage().getScaledInstance(
-                                        100, 100, Image.SCALE_SMOOTH
+                                        110, 110, Image.SCALE_SMOOTH
                                 )
                         );
                         img.setIcon(scaled);
@@ -455,8 +777,13 @@ public class CollegeConnectApp {
                             "Placed in: " + rs.getString("company") + "<br>" +
                             "Pkg: " + rs.getDouble("package_lpa") + " LPA</html>";
 
+                    JLabel infoLbl = new JLabel(info, SwingConstants.CENTER);
+                    infoLbl.setFont(Theme.FONT_NORMAL);
+                    infoLbl.setForeground(Theme.TEXT);
+
                     card.add(img, BorderLayout.CENTER);
-                    card.add(new JLabel(info, SwingConstants.CENTER), BorderLayout.SOUTH);
+                    card.add(infoLbl, BorderLayout.SOUTH);
+
                     pnlPlace.add(card);
                 }
             } catch (Exception e) {
@@ -479,28 +806,29 @@ public class CollegeConnectApp {
             setLocationRelativeTo(parent);
             setLayout(new BorderLayout(10, 10));
 
+            Theme.applyDialog(this);
+            add(Theme.appBar("Compare Colleges", "Side-by-side comparison of fees, hostels, facilities & placements"), BorderLayout.NORTH);
+
             DefaultTableModel cmpModel = new DefaultTableModel(
                     new String[]{
-                            "College",
-                            "State",
-                            "Course",
-                            "Location",
-                            "Fees",
-                            "Facilities",
-                            "Hostels",
-                            "Placements (Placed/Avg/Max/Top)"
+                            "College", "State", "Course", "Location", "Fees",
+                            "Facilities", "Hostels", "Placements (Placed/Avg/Max/Top)"
                     }, 0
             );
 
             JTable cmpTable = new JTable(cmpModel);
-            cmpTable.setRowHeight(85);
+            Theme.styleTable(cmpTable);
+            cmpTable.setRowHeight(90);
 
             loadComparison(cmpModel);
 
-            add(new JScrollPane(cmpTable), BorderLayout.CENTER);
+            add(Theme.styleScroll(new JScrollPane(cmpTable)), BorderLayout.CENTER);
 
             JButton close = new JButton("Close");
+            Theme.styleButton(close, Theme.SLATE, Theme.SLATE_DARK);
+
             JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            bottom.setBackground(Theme.BG);
             bottom.add(close);
             add(bottom, BorderLayout.SOUTH);
 
@@ -515,8 +843,6 @@ public class CollegeConnectApp {
                 if (con == null) return;
 
                 for (int id : collegeIds) {
-
-                    // Basic
                     String name = "", location = "", state = "", course = "";
                     double fees = 0;
 
@@ -533,7 +859,6 @@ public class CollegeConnectApp {
                         course = rs.getString("course");
                     }
 
-                    // Facilities
                     StringBuilder facilitiesList = new StringBuilder();
                     int facilitiesCount = 0;
 
@@ -547,7 +872,6 @@ public class CollegeConnectApp {
                     String facilitiesHtml = "<html><b>" + facilitiesCount + "</b><br>" +
                             (facilitiesCount == 0 ? "No data" : facilitiesList.toString()) + "</html>";
 
-                    // Hostels
                     StringBuilder hostelsList = new StringBuilder();
                     int hostelCount = 0;
 
@@ -562,7 +886,6 @@ public class CollegeConnectApp {
                     }
                     String hostelsHtml = "<html>" + (hostelCount == 0 ? "No data" : hostelsList.toString()) + "</html>";
 
-                    // Placements summary
                     int placedCount = 0;
                     double sumPkg = 0;
                     double maxPkg = 0;
@@ -617,13 +940,22 @@ public class CollegeConnectApp {
             setLocationRelativeTo(null);
             setLayout(new BorderLayout());
 
+            Theme.applyFrame(this);
+
+            add(Theme.appBar("Admin Dashboard", "Add colleges • Add details • Manage & update data"), BorderLayout.NORTH);
+
             JTabbedPane tabs = new JTabbedPane();
+            Theme.styleTabs(tabs);
+
             tabs.addTab("Add College", new AddCollegePanel());
             tabs.addTab("Add Details", new AddDetailsPanel());
             tabs.addTab("Manage Colleges", new ManageCollegesPanel());
 
             JButton btnLogout = new JButton("Logout");
+            Theme.styleButton(btnLogout, Theme.DANGER, Theme.DANGER_DARK);
+
             JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            bottom.setBackground(Theme.BG);
             bottom.add(btnLogout);
 
             add(tabs, BorderLayout.CENTER);
@@ -645,27 +977,53 @@ public class CollegeConnectApp {
     }
 
     // =========================================================================
-    // ADMIN: ADD COLLEGE (NOW includes State + Course)
+    // ADMIN: ADD COLLEGE (includes State + Course)
     // =========================================================================
     static class AddCollegePanel extends JPanel {
         JTextField name, loc, fees, imgPath, state, course;
         JTextArea desc;
 
         public AddCollegePanel() {
-            setLayout(new GridLayout(8, 2, 8, 8));
+            setLayout(new BorderLayout(10, 10));
+            setBackground(Theme.BG);
 
-            add(new JLabel("Name:")); name = new JTextField(); add(name);
-            add(new JLabel("State:")); state = new JTextField(); add(state);
-            add(new JLabel("Course:")); course = new JTextField(); add(course);
+            JPanel card = new JPanel(new GridLayout(8, 2, 10, 12));
+            Theme.styleCard(card);
 
-            add(new JLabel("Location:")); loc = new JTextField(); add(loc);
-            add(new JLabel("Fees:")); fees = new JTextField(); add(fees);
-            add(new JLabel("Image Path (e.g C:/img.jpg):")); imgPath = new JTextField(); add(imgPath);
-            add(new JLabel("Description:")); desc = new JTextArea(); add(new JScrollPane(desc));
+            JLabel l1 = new JLabel("Name:");
+            JLabel l2 = new JLabel("State:");
+            JLabel l3 = new JLabel("Course:");
+            JLabel l4 = new JLabel("Location:");
+            JLabel l5 = new JLabel("Fees:");
+            JLabel l6 = new JLabel("Image Path (e.g C:/img.jpg):");
+            JLabel l7 = new JLabel("Description:");
+            Theme.styleLabel(l1); Theme.styleLabel(l2); Theme.styleLabel(l3);
+            Theme.styleLabel(l4); Theme.styleLabel(l5); Theme.styleLabel(l6); Theme.styleLabel(l7);
+
+            card.add(l1); name = new JTextField(); Theme.styleField(name); card.add(name);
+            card.add(l2); state = new JTextField(); Theme.styleField(state); card.add(state);
+            card.add(l3); course = new JTextField(); Theme.styleField(course); card.add(course);
+            card.add(l4); loc = new JTextField(); Theme.styleField(loc); card.add(loc);
+            card.add(l5); fees = new JTextField(); Theme.styleField(fees); card.add(fees);
+            card.add(l6); imgPath = new JTextField(); Theme.styleField(imgPath); card.add(imgPath);
+
+            desc = new JTextArea(4, 20);
+            desc.setLineWrap(true);
+            desc.setWrapStyleWord(true);
+            Theme.styleTextArea(desc);
+
+            card.add(l7);
+            card.add(Theme.styleScroll(new JScrollPane(desc)));
 
             JButton btn = new JButton("Save College");
-            add(btn);
-            add(new JLabel(""));
+            Theme.styleButton(btn, Theme.PRIMARY, Theme.PRIMARY_DARK);
+
+            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            bottom.setBackground(Theme.BG);
+            bottom.add(btn);
+
+            add(card, BorderLayout.CENTER);
+            add(bottom, BorderLayout.SOUTH);
 
             btn.addActionListener(e -> {
                 try (Connection con = getConnection()) {
@@ -701,25 +1059,58 @@ public class CollegeConnectApp {
         JTextField studName, comp, pkg, studImg;
 
         public AddDetailsPanel() {
-            setLayout(new GridLayout(14, 2));
+            setLayout(new BorderLayout(10, 10));
+            setBackground(Theme.BG);
 
-            add(new JLabel("College ID (Check Database):")); id = new JTextField(); add(id);
+            JPanel card = new JPanel(new GridLayout(14, 2, 10, 12));
+            Theme.styleCard(card);
 
-            add(new JLabel("--- Add Facility ---")); add(new JLabel(""));
-            add(new JLabel("Facility Name:")); fac = new JTextField(); add(fac);
-            JButton btnFac = new JButton("Add Facility"); add(btnFac); add(new JLabel(""));
+            JLabel a = new JLabel("College ID (Check Database):"); Theme.styleLabel(a);
+            card.add(a); id = new JTextField(); Theme.styleField(id); card.add(id);
 
-            add(new JLabel("--- Add Hostel ---")); add(new JLabel(""));
-            add(new JLabel("Hostel Type:")); hosType = new JTextField(); add(hosType);
-            add(new JLabel("Hostel Fee (per year):")); hosFee = new JTextField(); add(hosFee);
-            JButton btnHos = new JButton("Add Hostel"); add(btnHos); add(new JLabel(""));
+            JLabel b1 = new JLabel("--- Add Facility ---"); Theme.styleLabel(b1);
+            card.add(b1); card.add(new JLabel(""));
 
-            add(new JLabel("--- Add Placement ---")); add(new JLabel(""));
-            add(new JLabel("Student Name:")); studName = new JTextField(); add(studName);
-            add(new JLabel("Company:")); comp = new JTextField(); add(comp);
-            add(new JLabel("Package (LPA):")); pkg = new JTextField(); add(pkg);
-            add(new JLabel("Student Image Path:")); studImg = new JTextField(); add(studImg);
-            JButton btnPlace = new JButton("Add Placement"); add(btnPlace); add(new JLabel(""));
+            JLabel b2 = new JLabel("Facility Name:"); Theme.styleLabel(b2);
+            card.add(b2); fac = new JTextField(); Theme.styleField(fac); card.add(fac);
+
+            JButton btnFac = new JButton("Add Facility");
+            Theme.styleButton(btnFac, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            card.add(btnFac); card.add(new JLabel(""));
+
+            JLabel c1 = new JLabel("--- Add Hostel ---"); Theme.styleLabel(c1);
+            card.add(c1); card.add(new JLabel(""));
+
+            JLabel c2 = new JLabel("Hostel Type:"); Theme.styleLabel(c2);
+            card.add(c2); hosType = new JTextField(); Theme.styleField(hosType); card.add(hosType);
+
+            JLabel c3 = new JLabel("Hostel Fee (per year):"); Theme.styleLabel(c3);
+            card.add(c3); hosFee = new JTextField(); Theme.styleField(hosFee); card.add(hosFee);
+
+            JButton btnHos = new JButton("Add Hostel");
+            Theme.styleButton(btnHos, Theme.ACCENT, Theme.ACCENT_DARK);
+            card.add(btnHos); card.add(new JLabel(""));
+
+            JLabel d1 = new JLabel("--- Add Placement ---"); Theme.styleLabel(d1);
+            card.add(d1); card.add(new JLabel(""));
+
+            JLabel d2 = new JLabel("Student Name:"); Theme.styleLabel(d2);
+            card.add(d2); studName = new JTextField(); Theme.styleField(studName); card.add(studName);
+
+            JLabel d3 = new JLabel("Company:"); Theme.styleLabel(d3);
+            card.add(d3); comp = new JTextField(); Theme.styleField(comp); card.add(comp);
+
+            JLabel d4 = new JLabel("Package (LPA):"); Theme.styleLabel(d4);
+            card.add(d4); pkg = new JTextField(); Theme.styleField(pkg); card.add(pkg);
+
+            JLabel d5 = new JLabel("Student Image Path:"); Theme.styleLabel(d5);
+            card.add(d5); studImg = new JTextField(); Theme.styleField(studImg); card.add(studImg);
+
+            JButton btnPlace = new JButton("Add Placement");
+            Theme.styleButton(btnPlace, Theme.WARN, Theme.WARN_DARK);
+            card.add(btnPlace); card.add(new JLabel(""));
+
+            add(card, BorderLayout.CENTER);
 
             btnFac.addActionListener(e -> addFacility());
             btnHos.addActionListener(e -> addHostel());
@@ -836,46 +1227,71 @@ public class CollegeConnectApp {
 
         public ManageCollegesPanel() {
             setLayout(new BorderLayout(10, 10));
+            setBackground(Theme.BG);
 
             model = new DefaultTableModel(new String[]{"ID", "Name", "State", "Course", "Location", "Fees"}, 0);
             table = new JTable(model);
+            Theme.styleTable(table);
 
             loadColleges();
-            add(new JScrollPane(table), BorderLayout.CENTER);
+            add(Theme.styleScroll(new JScrollPane(table)), BorderLayout.CENTER);
 
-            JPanel form = new JPanel(new GridLayout(8, 2, 8, 8));
-            txtId = new JTextField(); txtId.setEditable(false);
-            txtName = new JTextField();
-            txtState = new JTextField();
-            txtCourse = new JTextField();
-            txtLoc = new JTextField();
-            txtFees = new JTextField();
-            txtImg = new JTextField();
+            JPanel card = new JPanel(new BorderLayout(10, 10));
+            card.setBackground(Theme.BG);
+
+            JPanel form = new JPanel(new GridLayout(8, 2, 10, 12));
+            Theme.styleCard(form);
+
+            txtId = new JTextField(); txtId.setEditable(false); Theme.styleField(txtId);
+            txtName = new JTextField(); Theme.styleField(txtName);
+            txtState = new JTextField(); Theme.styleField(txtState);
+            txtCourse = new JTextField(); Theme.styleField(txtCourse);
+            txtLoc = new JTextField(); Theme.styleField(txtLoc);
+            txtFees = new JTextField(); Theme.styleField(txtFees);
+            txtImg = new JTextField(); Theme.styleField(txtImg);
+
             txtDesc = new JTextArea(3, 20);
+            txtDesc.setLineWrap(true);
+            txtDesc.setWrapStyleWord(true);
+            Theme.styleTextArea(txtDesc);
 
-            form.add(new JLabel("College ID:")); form.add(txtId);
-            form.add(new JLabel("Name:")); form.add(txtName);
-            form.add(new JLabel("State:")); form.add(txtState);
-            form.add(new JLabel("Course:")); form.add(txtCourse);
-            form.add(new JLabel("Location:")); form.add(txtLoc);
-            form.add(new JLabel("Fees:")); form.add(txtFees);
-            form.add(new JLabel("Image Path:")); form.add(txtImg);
-            form.add(new JLabel("Description:")); form.add(new JScrollPane(txtDesc));
+            JLabel f1 = new JLabel("College ID:"); Theme.styleLabel(f1);
+            JLabel f2 = new JLabel("Name:"); Theme.styleLabel(f2);
+            JLabel f3 = new JLabel("State:"); Theme.styleLabel(f3);
+            JLabel f4 = new JLabel("Course:"); Theme.styleLabel(f4);
+            JLabel f5 = new JLabel("Location:"); Theme.styleLabel(f5);
+            JLabel f6 = new JLabel("Fees:"); Theme.styleLabel(f6);
+            JLabel f7 = new JLabel("Image Path:"); Theme.styleLabel(f7);
+            JLabel f8 = new JLabel("Description:"); Theme.styleLabel(f8);
 
-            JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            form.add(f1); form.add(txtId);
+            form.add(f2); form.add(txtName);
+            form.add(f3); form.add(txtState);
+            form.add(f4); form.add(txtCourse);
+            form.add(f5); form.add(txtLoc);
+            form.add(f6); form.add(txtFees);
+            form.add(f7); form.add(txtImg);
+            form.add(f8); form.add(Theme.styleScroll(new JScrollPane(txtDesc)));
+
+            JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+            buttons.setBackground(Theme.BG);
+
             JButton btnRefresh = new JButton("Refresh");
             JButton btnUpdate = new JButton("Update");
             JButton btnDelete = new JButton("Delete");
+
+            Theme.styleButton(btnRefresh, Theme.SLATE, Theme.SLATE_DARK);
+            Theme.styleButton(btnUpdate, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            Theme.styleButton(btnDelete, Theme.DANGER, Theme.DANGER_DARK);
 
             buttons.add(btnRefresh);
             buttons.add(btnUpdate);
             buttons.add(btnDelete);
 
-            JPanel south = new JPanel(new BorderLayout());
-            south.add(form, BorderLayout.CENTER);
-            south.add(buttons, BorderLayout.SOUTH);
+            card.add(form, BorderLayout.CENTER);
+            card.add(buttons, BorderLayout.SOUTH);
 
-            add(south, BorderLayout.SOUTH);
+            add(card, BorderLayout.SOUTH);
 
             table.getSelectionModel().addListSelectionListener(e -> {
                 if (e.getValueIsAdjusting()) return;
