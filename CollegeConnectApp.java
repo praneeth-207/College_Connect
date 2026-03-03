@@ -1,7 +1,10 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Ellipse2D;
 import java.io.File;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -11,10 +14,10 @@ public class CollegeConnectApp {
     // --- CONFIGURATION ---
     private static final String DB_URL = "jdbc:mysql://localhost:3306/college_connect_db";
     private static final String DB_USER = "root";
-    private static final String DB_PASS = "root";
+    private static final String DB_PASS = "root"; // Change this if your MySQL password is not 'root'
 
     public static void main(String[] args) {
-        // ✅ Modern L&F + subtle theme tweaks (attractive UI)
+        // Modern L&F + subtle theme tweaks
         try {
             UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
 
@@ -54,7 +57,7 @@ public class CollegeConnectApp {
     }
 
     // =========================================================================
-    // THEME (UI ONLY - DOES NOT CHANGE ANY FEATURE)
+    // THEME (UI ONLY)
     // =========================================================================
     static class Theme {
         static final Color BG = new Color(248, 250, 252);
@@ -169,6 +172,40 @@ public class CollegeConnectApp {
                 @Override public void mouseExited(MouseEvent e) { b.setBackground(bg); }
             });
         }
+        
+        static JButton createCircularProfileButton(String username) {
+            String initial = username != null && !username.isEmpty() ? username.substring(0, 1).toUpperCase() : "?";
+            
+            JButton btn = new JButton(initial) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    if (getModel().isRollover()) {
+                        g2.setColor(PRIMARY_DARK);
+                    } else {
+                        g2.setColor(PRIMARY);
+                    }
+                    g2.fill(new Ellipse2D.Double(0, 0, getWidth(), getHeight()));
+                    super.paintComponent(g);
+                    g2.dispose();
+                }
+                
+                @Override
+                protected void paintBorder(Graphics g) {
+                }
+            };
+            
+            btn.setFont(new Font("Segoe UI", Font.BOLD, 18));
+            btn.setForeground(Color.WHITE);
+            btn.setPreferredSize(new Dimension(40, 40));
+            btn.setContentAreaFilled(false);
+            btn.setFocusPainted(false);
+            btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            btn.setToolTipText("My Profile");
+            
+            return btn;
+        }
 
         static void styleTable(JTable table) {
             table.setFont(FONT_NORMAL);
@@ -185,7 +222,6 @@ public class CollegeConnectApp {
                 table.getTableHeader().setForeground(TEXT);
             }
 
-            // ✅ Zebra rows + padding
             DefaultTableCellRenderer r = new DefaultTableCellRenderer() {
                 @Override
                 public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int row, int col) {
@@ -208,8 +244,7 @@ public class CollegeConnectApp {
             return sp;
         }
 
-        // ✅ Gradient AppBar
-        static JPanel appBar(String title, String subtitle) {
+        static JPanel appBar(String title, String subtitle, JPanel rightPanel) {
             JPanel bar = new JPanel(new BorderLayout()) {
                 @Override protected void paintComponent(Graphics g) {
                     super.paintComponent(g);
@@ -239,12 +274,18 @@ public class CollegeConnectApp {
             left.add(s);
 
             bar.add(left, BorderLayout.WEST);
+            
+            if (rightPanel != null) {
+                rightPanel.setOpaque(false);
+                bar.add(rightPanel, BorderLayout.EAST);
+            }
+            
             return bar;
         }
     }
 
     // =========================================================================
-    // 1. LOGIN SCREEN (NO STATE/COURSE HERE)
+    // 1. LOGIN SCREEN
     // =========================================================================
     static class LoginFrame extends JFrame {
         JTextField txtUser;
@@ -257,7 +298,7 @@ public class CollegeConnectApp {
             setLocationRelativeTo(null);
 
             Theme.applyFrame(this);
-            add(Theme.appBar("College Connect", "Secure login • Smart filtering • Compare colleges"), BorderLayout.NORTH);
+            add(Theme.appBar("College Connect", "Secure login • Smart filtering • Compare colleges", null), BorderLayout.NORTH);
 
             JPanel wrapper = new JPanel(new GridBagLayout());
             wrapper.setBackground(Theme.BG);
@@ -338,7 +379,6 @@ public class CollegeConnectApp {
             btns.add(btnReg);
 
             card.add(btns);
-
             wrapper.add(card);
 
             setVisible(true);
@@ -349,7 +389,7 @@ public class CollegeConnectApp {
                 if (con == null) return;
 
                 PreparedStatement ps = con.prepareStatement(
-                        "SELECT role FROM users WHERE username=? AND password=?"
+                        "SELECT role, college_id FROM users WHERE username=? AND password=?"
                 );
                 ps.setString(1, txtUser.getText().trim());
                 ps.setString(2, new String(txtPass.getPassword()));
@@ -357,8 +397,13 @@ public class CollegeConnectApp {
 
                 if (rs.next()) {
                     dispose();
-                    if ("Admin".equalsIgnoreCase(rs.getString("role"))) {
+                    String role = rs.getString("role");
+                    
+                    if ("Admin".equalsIgnoreCase(role)) {
                         new AdminDashboard();
+                    } else if ("College".equalsIgnoreCase(role)) {
+                        int collegeId = rs.getInt("college_id");
+                        new CollegeDashboard(txtUser.getText().trim(), collegeId);
                     } else {
                         new StudentDashboard(txtUser.getText().trim());
                     }
@@ -395,7 +440,7 @@ public class CollegeConnectApp {
     }
 
     // =========================================================================
-    // 2. STUDENT DASHBOARD (FILTER BY STATE + COURSE + SEARCH + COMPARE)
+    // 2. STUDENT DASHBOARD 
     // =========================================================================
     static class StudentDashboard extends JFrame {
         String user;
@@ -416,10 +461,19 @@ public class CollegeConnectApp {
 
             Theme.applyFrame(this);
 
-            // North wrapper: AppBar + filters
+            JPanel rightMenu = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+            rightMenu.setOpaque(false);
+            
+            JButton btnProfile = Theme.createCircularProfileButton(user);
+            JButton btnLogout = new JButton("Logout");
+            Theme.styleButton(btnLogout, Theme.DANGER, Theme.DANGER_DARK); 
+            
+            rightMenu.add(btnProfile);
+            rightMenu.add(btnLogout);
+
             JPanel north = new JPanel(new BorderLayout());
             north.setBackground(Theme.BG);
-            north.add(Theme.appBar("Student Dashboard", "Filter by state/course • Search • Compare • Apply"), BorderLayout.NORTH);
+            north.add(Theme.appBar("Student Dashboard", "Check the boxes to compare • View Profiles • Apply", rightMenu), BorderLayout.NORTH);
 
             JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
             top.setBackground(Theme.BG);
@@ -441,7 +495,6 @@ public class CollegeConnectApp {
             txtSearch = new JTextField(16);
             Theme.styleField(txtSearch);
 
-            // Placeholder behavior
             txtSearch.setForeground(Theme.MUTED);
             txtSearch.setText("Search college name...");
             txtSearch.addFocusListener(new FocusAdapter() {
@@ -462,35 +515,45 @@ public class CollegeConnectApp {
             JButton btnFilter = new JButton("Apply Filter");
             JButton btnClear = new JButton("Clear");
             JButton btnView = new JButton("View Full Profile");
-            JButton btnCompare = new JButton("Compare");
-            JButton btnLogout = new JButton("Logout");
+            JButton btnCompare = new JButton("Compare Selected");
 
             Theme.styleButton(btnFilter, Theme.PRIMARY, Theme.PRIMARY_DARK);
             Theme.styleButton(btnClear, Theme.SLATE, Theme.SLATE_DARK);
             Theme.styleButton(btnView, Theme.ACCENT, Theme.ACCENT_DARK);
             Theme.styleButton(btnCompare, Theme.WARN, Theme.WARN_DARK);
-            Theme.styleButton(btnLogout, Theme.DANGER, Theme.DANGER_DARK);
 
             JLabel s1 = new JLabel("State:");
             JLabel s2 = new JLabel("Course:");
             JLabel s3 = new JLabel("Search:");
-            Theme.styleLabel(s1);
-            Theme.styleLabel(s2);
-            Theme.styleLabel(s3);
+            Theme.styleLabel(s1); Theme.styleLabel(s2); Theme.styleLabel(s3);
 
             top.add(s1); top.add(cmbState);
             top.add(s2); top.add(cmbCourse);
             top.add(s3); top.add(txtSearch);
             top.add(btnFilter); top.add(btnClear);
-            top.add(btnView); top.add(btnCompare); top.add(btnLogout);
+            top.add(btnView); top.add(btnCompare); 
 
             north.add(top, BorderLayout.SOUTH);
             add(north, BorderLayout.NORTH);
 
-            model = new DefaultTableModel(new String[]{"ID", "Name", "State", "Course", "Location", "Fees"}, 0);
+            model = new DefaultTableModel(new String[]{"Compare", "ID", "Name", "State", "Course", "Location", "Fees"}, 0) {
+                @Override
+                public Class<?> getColumnClass(int columnIndex) {
+                    if (columnIndex == 0) return Boolean.class; 
+                    return super.getColumnClass(columnIndex);
+                }
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    return column == 0; 
+                }
+            };
+            
             table = new JTable(model);
             Theme.styleTable(table);
-            table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+            table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            
+            table.getColumnModel().getColumn(0).setMaxWidth(70);
+            table.getColumnModel().getColumn(1).setMaxWidth(50);
 
             add(Theme.styleScroll(new JScrollPane(table)), BorderLayout.CENTER);
 
@@ -507,7 +570,8 @@ public class CollegeConnectApp {
 
             btnView.addActionListener(e -> openCollegeProfile());
             btnCompare.addActionListener(e -> openCompareDialog());
-
+            
+            btnProfile.addActionListener(e -> new StudentProfileDialog(this, user));
             btnLogout.addActionListener(e -> {
                 int choice = JOptionPane.showConfirmDialog(
                         this, "Do you want to logout?", "Confirm Logout",
@@ -537,7 +601,7 @@ public class CollegeConnectApp {
             try (Connection con = getConnection()) {
                 if (con == null) return;
 
-                java.util.ArrayList<Object> params = new java.util.ArrayList<>();
+                ArrayList<Object> params = new ArrayList<>();
 
                 if (selectedState != null && !"All States".equals(selectedState)) {
                     sql.append(" AND state = ?");
@@ -559,6 +623,7 @@ public class CollegeConnectApp {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
                     model.addRow(new Object[]{
+                            false, 
                             rs.getInt("college_id"),
                             rs.getString("name"),
                             rs.getString("state"),
@@ -567,7 +632,6 @@ public class CollegeConnectApp {
                             rs.getDouble("fees")
                     });
                 }
-
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Load colleges error: " + e.getMessage());
             }
@@ -576,29 +640,149 @@ public class CollegeConnectApp {
         void openCollegeProfile() {
             int row = table.getSelectedRow();
             if (row == -1) {
-                JOptionPane.showMessageDialog(this, "Select a college first!");
+                JOptionPane.showMessageDialog(this, "Click on a college row first to view its profile!");
                 return;
             }
-            int id = (int) model.getValueAt(row, 0);
+            int id = (int) model.getValueAt(row, 1); 
             new CollegeProfileDialog(this, id, user);
         }
 
         void openCompareDialog() {
-            int[] rows = table.getSelectedRows();
-            if (rows == null || rows.length < 2) {
-                JOptionPane.showMessageDialog(this, "Select at least 2 colleges to compare! (Ctrl + Click)");
+            List<Integer> selectedIds = new ArrayList<>();
+            for (int i = 0; i < model.getRowCount(); i++) {
+                Boolean isChecked = (Boolean) model.getValueAt(i, 0);
+                if (isChecked != null && isChecked) {
+                    selectedIds.add((Integer) model.getValueAt(i, 1)); 
+                }
+            }
+
+            if (selectedIds.size() < 2) {
+                JOptionPane.showMessageDialog(this, "Please check the 'Compare' box for at least 2 colleges!");
                 return;
             }
 
-            int[] ids = new int[rows.length];
-            for (int i = 0; i < rows.length; i++) ids[i] = (int) model.getValueAt(rows[i], 0);
+            int[] ids = new int[selectedIds.size()];
+            for (int i = 0; i < selectedIds.size(); i++) ids[i] = selectedIds.get(i);
 
             new CompareCollegesDialog(this, ids);
         }
     }
 
     // =========================================================================
-    // 3. DETAILED COLLEGE PROFILE
+    // 3. STUDENT PROFILE DIALOG
+    // =========================================================================
+    static class StudentProfileDialog extends JDialog {
+        String username;
+        JTextField txtFull, txtEmail, txtPhone, txtPass;
+
+        public StudentProfileDialog(JFrame parent, String username) {
+            super(parent, "My Profile", true);
+            this.username = username;
+            
+            setSize(480, 420);
+            setLocationRelativeTo(parent);
+            Theme.applyDialog(this);
+
+            add(Theme.appBar("My Profile", "Update your personal details", null), BorderLayout.NORTH);
+
+            try (Connection con = getConnection(); Statement st = con.createStatement()) {
+                st.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(100)");
+                st.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100)");
+                st.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)");
+            } catch (Exception ignored) { }
+
+            JPanel card = new JPanel(new GridLayout(5, 2, 10, 15));
+            Theme.styleCard(card);
+
+            JLabel l1 = new JLabel("Username (Read-only):"); Theme.styleLabel(l1);
+            JTextField txtUser = new JTextField(username); 
+            Theme.styleField(txtUser); 
+            txtUser.setEditable(false); 
+            txtUser.setBackground(Theme.BORDER);
+            txtUser.setForeground(Color.BLACK);
+            
+            JLabel l2 = new JLabel("Full Name:"); Theme.styleLabel(l2);
+            txtFull = new JTextField(); Theme.styleField(txtFull);
+            
+            JLabel l3 = new JLabel("Email Address:"); Theme.styleLabel(l3);
+            txtEmail = new JTextField(); Theme.styleField(txtEmail);
+            
+            JLabel l4 = new JLabel("Phone Number:"); Theme.styleLabel(l4);
+            txtPhone = new JTextField(); Theme.styleField(txtPhone);
+            
+            JLabel l5 = new JLabel("Password:"); Theme.styleLabel(l5);
+            txtPass = new JTextField(); Theme.styleField(txtPass);
+
+            card.add(l1); card.add(txtUser);
+            card.add(l2); card.add(txtFull);
+            card.add(l3); card.add(txtEmail);
+            card.add(l4); card.add(txtPhone);
+            card.add(l5); card.add(txtPass);
+
+            loadProfileData();
+
+            JButton btnSave = new JButton("Save Changes");
+            Theme.styleButton(btnSave, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            
+            JButton btnCancel = new JButton("Cancel");
+            Theme.styleButton(btnCancel, Theme.SLATE, Theme.SLATE_DARK);
+
+            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            bottom.setBackground(Theme.BG);
+            bottom.add(btnCancel);
+            bottom.add(btnSave);
+
+            add(card, BorderLayout.CENTER);
+            add(bottom, BorderLayout.SOUTH);
+
+            btnCancel.addActionListener(e -> dispose());
+            btnSave.addActionListener(e -> saveProfileData());
+
+            setVisible(true);
+        }
+
+        void loadProfileData() {
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                PreparedStatement ps = con.prepareStatement(
+                    "SELECT full_name, email, phone, password FROM users WHERE username=?"
+                );
+                ps.setString(1, username);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    txtFull.setText(rs.getString("full_name") != null ? rs.getString("full_name") : "");
+                    txtEmail.setText(rs.getString("email") != null ? rs.getString("email") : "");
+                    txtPhone.setText(rs.getString("phone") != null ? rs.getString("phone") : "");
+                    txtPass.setText(rs.getString("password") != null ? rs.getString("password") : "");
+                }
+            } catch (Exception ex) {
+                System.err.println("Load profile error: " + ex.getMessage());
+            }
+        }
+
+        void saveProfileData() {
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                PreparedStatement ps = con.prepareStatement(
+                    "UPDATE users SET full_name=?, email=?, phone=?, password=? WHERE username=?"
+                );
+                ps.setString(1, txtFull.getText().trim());
+                ps.setString(2, txtEmail.getText().trim());
+                ps.setString(3, txtPhone.getText().trim());
+                ps.setString(4, txtPass.getText().trim());
+                ps.setString(5, username);
+
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Profile Updated Successfully!");
+                dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error updating profile: " + ex.getMessage());
+            }
+        }
+    }
+
+    // =========================================================================
+    // 4. DETAILED COLLEGE PROFILE
     // =========================================================================
     static class CollegeProfileDialog extends JDialog {
         int collegeId;
@@ -616,7 +800,7 @@ public class CollegeConnectApp {
 
             JPanel north = new JPanel(new BorderLayout());
             north.setBackground(Theme.BG);
-            north.add(Theme.appBar("College Profile", "Overview • Facilities • Hostels • Placements"), BorderLayout.NORTH);
+            north.add(Theme.appBar("College Profile", "Overview • Facilities • Hostels • Placements", null), BorderLayout.NORTH);
             add(north, BorderLayout.NORTH);
 
             JTabbedPane tabs = new JTabbedPane();
@@ -692,11 +876,15 @@ public class CollegeConnectApp {
 
             pnlOverview.add(card, BorderLayout.CENTER);
 
-            DefaultTableModel facModel = new DefaultTableModel(new String[]{"Facility Name"}, 0);
+            DefaultTableModel facModel = new DefaultTableModel(new String[]{"Facility Name"}, 0) {
+                @Override public boolean isCellEditable(int row, int column) { return false; }
+            };
             JTable facTable = new JTable(facModel);
             Theme.styleTable(facTable);
 
-            DefaultTableModel hosModel = new DefaultTableModel(new String[]{"Room Type", "Fee (per year)"}, 0);
+            DefaultTableModel hosModel = new DefaultTableModel(new String[]{"Room Type", "Fee (per year)"}, 0) {
+                @Override public boolean isCellEditable(int row, int column) { return false; }
+            };
             JTable hosTable = new JTable(hosModel);
             Theme.styleTable(hosTable);
 
@@ -807,14 +995,16 @@ public class CollegeConnectApp {
             setLayout(new BorderLayout(10, 10));
 
             Theme.applyDialog(this);
-            add(Theme.appBar("Compare Colleges", "Side-by-side comparison of fees, hostels, facilities & placements"), BorderLayout.NORTH);
+            add(Theme.appBar("Compare Colleges", "Side-by-side comparison of fees, hostels, facilities & placements", null), BorderLayout.NORTH);
 
             DefaultTableModel cmpModel = new DefaultTableModel(
                     new String[]{
                             "College", "State", "Course", "Location", "Fees",
                             "Facilities", "Hostels", "Placements (Placed/Avg/Max/Top)"
                     }, 0
-            );
+            ) {
+                @Override public boolean isCellEditable(int row, int column) { return false; }
+            };
 
             JTable cmpTable = new JTable(cmpModel);
             Theme.styleTable(cmpTable);
@@ -942,7 +1132,13 @@ public class CollegeConnectApp {
 
             Theme.applyFrame(this);
 
-            add(Theme.appBar("Admin Dashboard", "Add colleges • Add details • Manage & update data"), BorderLayout.NORTH);
+            JPanel rightMenu = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+            rightMenu.setOpaque(false);
+            JButton btnLogout = new JButton("Logout");
+            Theme.styleButton(btnLogout, Theme.DANGER, Theme.DANGER_DARK);
+            rightMenu.add(btnLogout);
+
+            add(Theme.appBar("Admin Dashboard", "Add colleges • Add details • Manage & update data", rightMenu), BorderLayout.NORTH);
 
             JTabbedPane tabs = new JTabbedPane();
             Theme.styleTabs(tabs);
@@ -950,16 +1146,9 @@ public class CollegeConnectApp {
             tabs.addTab("Add College", new AddCollegePanel());
             tabs.addTab("Add Details", new AddDetailsPanel());
             tabs.addTab("Manage Colleges", new ManageCollegesPanel());
-
-            JButton btnLogout = new JButton("Logout");
-            Theme.styleButton(btnLogout, Theme.DANGER, Theme.DANGER_DARK);
-
-            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-            bottom.setBackground(Theme.BG);
-            bottom.add(btnLogout);
+            tabs.addTab("View Applications", new ViewApplicationsPanel());
 
             add(tabs, BorderLayout.CENTER);
-            add(bottom, BorderLayout.SOUTH);
 
             btnLogout.addActionListener(e -> {
                 int choice = JOptionPane.showConfirmDialog(
@@ -975,9 +1164,65 @@ public class CollegeConnectApp {
             setVisible(true);
         }
     }
+    
+    // =========================================================================
+    // ADMIN VIEW APPLICATIONS PANEL
+    // =========================================================================
+    static class ViewApplicationsPanel extends JPanel {
+        DefaultTableModel model;
+        JTable table;
+
+        public ViewApplicationsPanel() {
+            setLayout(new BorderLayout(10, 10));
+            setBackground(Theme.BG);
+
+            try (Connection con = getConnection(); Statement st = con.createStatement()) {
+                st.execute("ALTER TABLE applications ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST");
+            } catch (Exception ignored) {}
+
+            model = new DefaultTableModel(new String[]{"Application ID", "Student Username", "College Applied To"}, 0) {
+                @Override public boolean isCellEditable(int row, int column) { return false; }
+            };
+            table = new JTable(model);
+            Theme.styleTable(table);
+
+            loadApplications();
+
+            JButton btnRefresh = new JButton("Refresh Applications");
+            Theme.styleButton(btnRefresh, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            btnRefresh.addActionListener(e -> loadApplications());
+
+            JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            topPanel.setBackground(Theme.BG);
+            topPanel.add(btnRefresh);
+
+            add(topPanel, BorderLayout.NORTH);
+            add(Theme.styleScroll(new JScrollPane(table)), BorderLayout.CENTER);
+        }
+
+        void loadApplications() {
+            model.setRowCount(0);
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                PreparedStatement ps = con.prepareStatement(
+                        "SELECT id, student_name, college_name FROM applications ORDER BY id DESC"
+                );
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    model.addRow(new Object[]{
+                            rs.getInt("id"),
+                            rs.getString("student_name"),
+                            rs.getString("college_name")
+                    });
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error loading applications: " + ex.getMessage());
+            }
+        }
+    }
 
     // =========================================================================
-    // ADMIN: ADD COLLEGE (includes State + Course)
+    // ADMIN: ADD COLLEGE 
     // =========================================================================
     static class AddCollegePanel extends JPanel {
         JTextField name, loc, fees, imgPath, state, course;
@@ -1050,13 +1295,10 @@ public class CollegeConnectApp {
     }
 
     // =========================================================================
-    // ADMIN: ADD DETAILS (Facilities + Hostels + Placements)
+    // ADMIN: ADD DETAILS 
     // =========================================================================
     static class AddDetailsPanel extends JPanel {
-        JTextField id;
-        JTextField fac;
-        JTextField hosType, hosFee;
-        JTextField studName, comp, pkg, studImg;
+        JTextField id, fac, hosType, hosFee, studName, comp, pkg, studImg;
 
         public AddDetailsPanel() {
             setLayout(new BorderLayout(10, 10));
@@ -1134,94 +1376,63 @@ public class CollegeConnectApp {
         void addFacility() {
             int cid = getCollegeIdOrWarn();
             if (cid == -1) return;
-
             String facility = fac.getText().trim();
-            if (facility.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Enter Facility Name.");
-                return;
-            }
-
+            if (facility.isEmpty()) { JOptionPane.showMessageDialog(this, "Enter Facility Name."); return; }
             try (Connection con = getConnection()) {
                 if (con == null) return;
-                PreparedStatement ps = con.prepareStatement(
-                        "INSERT INTO facilities (college_id, facility_name) VALUES (?, ?)"
-                );
+                PreparedStatement ps = con.prepareStatement("INSERT INTO facilities (college_id, facility_name) VALUES (?, ?)");
                 ps.setInt(1, cid);
                 ps.setString(2, facility);
                 ps.executeUpdate();
                 JOptionPane.showMessageDialog(this, "Facility Added!");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
-            }
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()); }
         }
 
         void addHostel() {
             int cid = getCollegeIdOrWarn();
             if (cid == -1) return;
-
             String type = hosType.getText().trim();
             String feeStr = hosFee.getText().trim();
-            if (type.isEmpty() || feeStr.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Enter Hostel Type and Fee.");
-                return;
-            }
-
+            if (type.isEmpty() || feeStr.isEmpty()) { JOptionPane.showMessageDialog(this, "Enter Hostel Type and Fee."); return; }
             try (Connection con = getConnection()) {
                 if (con == null) return;
-                PreparedStatement ps = con.prepareStatement(
-                        "INSERT INTO hostels (college_id, type, fee) VALUES (?, ?, ?)"
-                );
+                PreparedStatement ps = con.prepareStatement("INSERT INTO hostels (college_id, type, fee) VALUES (?, ?, ?)");
                 ps.setInt(1, cid);
                 ps.setString(2, type);
                 ps.setDouble(3, Double.parseDouble(feeStr));
                 ps.executeUpdate();
                 JOptionPane.showMessageDialog(this, "Hostel Added!");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
-            }
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()); }
         }
 
         void addPlacement() {
             int cid = getCollegeIdOrWarn();
             if (cid == -1) return;
-
             String student = studName.getText().trim();
             String company = comp.getText().trim();
             String packStr = pkg.getText().trim();
             String imgPath = cleanPath(studImg.getText());
-
-            if (student.isEmpty() || company.isEmpty() || packStr.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Fill Student, Company and Package.");
-                return;
-            }
-
+            if (student.isEmpty() || company.isEmpty() || packStr.isEmpty()) { JOptionPane.showMessageDialog(this, "Fill Student, Company and Package."); return; }
             try (Connection con = getConnection()) {
                 if (con == null) return;
-
-                PreparedStatement ps = con.prepareStatement(
-                        "INSERT INTO placements (college_id, student_name, company, package_lpa, student_image_path) VALUES (?, ?, ?, ?, ?)"
-                );
+                PreparedStatement ps = con.prepareStatement("INSERT INTO placements (college_id, student_name, company, package_lpa, student_image_path) VALUES (?, ?, ?, ?, ?)");
                 ps.setInt(1, cid);
                 ps.setString(2, student);
                 ps.setString(3, company);
                 ps.setDouble(4, Double.parseDouble(packStr));
                 ps.setString(5, imgPath);
-
                 ps.executeUpdate();
                 JOptionPane.showMessageDialog(this, "Placement Added!");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
-            }
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()); }
         }
     }
 
     // =========================================================================
-    // ADMIN: MANAGE COLLEGES (UPDATE + DELETE) including State/Course
+    // ADMIN: MANAGE COLLEGES (FIXED UI LAYOUT)
     // =========================================================================
     static class ManageCollegesPanel extends JPanel {
         DefaultTableModel model;
         JTable table;
-
         JTextField txtId, txtName, txtState, txtCourse, txtLoc, txtFees, txtImg;
         JTextArea txtDesc;
 
@@ -1229,31 +1440,31 @@ public class CollegeConnectApp {
             setLayout(new BorderLayout(10, 10));
             setBackground(Theme.BG);
 
-            model = new DefaultTableModel(new String[]{"ID", "Name", "State", "Course", "Location", "Fees"}, 0);
+            model = new DefaultTableModel(new String[]{"ID", "Name", "State", "Course", "Location", "Fees"}, 0) {
+                @Override public boolean isCellEditable(int row, int column) { return false; }
+            };
             table = new JTable(model);
             Theme.styleTable(table);
 
             loadColleges();
-            add(Theme.styleScroll(new JScrollPane(table)), BorderLayout.CENTER);
+            
+            JScrollPane tableScroll = Theme.styleScroll(new JScrollPane(table));
+            tableScroll.setPreferredSize(new Dimension(800, 250)); 
 
-            JPanel card = new JPanel(new BorderLayout(10, 10));
-            card.setBackground(Theme.BG);
+            JPanel formWrapper = new JPanel(new BorderLayout());
+            formWrapper.setBackground(Theme.BG);
 
             JPanel form = new JPanel(new GridLayout(8, 2, 10, 12));
             Theme.styleCard(form);
 
-            txtId = new JTextField(); txtId.setEditable(false); Theme.styleField(txtId);
+            txtId = new JTextField(); Theme.styleField(txtId); txtId.setEditable(false); txtId.setBackground(Theme.BORDER); txtId.setForeground(Color.BLACK);
             txtName = new JTextField(); Theme.styleField(txtName);
             txtState = new JTextField(); Theme.styleField(txtState);
             txtCourse = new JTextField(); Theme.styleField(txtCourse);
             txtLoc = new JTextField(); Theme.styleField(txtLoc);
             txtFees = new JTextField(); Theme.styleField(txtFees);
             txtImg = new JTextField(); Theme.styleField(txtImg);
-
-            txtDesc = new JTextArea(3, 20);
-            txtDesc.setLineWrap(true);
-            txtDesc.setWrapStyleWord(true);
-            Theme.styleTextArea(txtDesc);
+            txtDesc = new JTextArea(3, 20); txtDesc.setLineWrap(true); txtDesc.setWrapStyleWord(true); Theme.styleTextArea(txtDesc);
 
             JLabel f1 = new JLabel("College ID:"); Theme.styleLabel(f1);
             JLabel f2 = new JLabel("Name:"); Theme.styleLabel(f2);
@@ -1288,10 +1499,22 @@ public class CollegeConnectApp {
             buttons.add(btnUpdate);
             buttons.add(btnDelete);
 
-            card.add(form, BorderLayout.CENTER);
-            card.add(buttons, BorderLayout.SOUTH);
+            formWrapper.add(form, BorderLayout.NORTH); 
+            formWrapper.add(buttons, BorderLayout.CENTER);
 
-            add(card, BorderLayout.SOUTH);
+            JScrollPane formScroll = new JScrollPane(formWrapper);
+            formScroll.setBorder(null);
+            formScroll.getVerticalScrollBar().setUnitIncrement(16); 
+
+            JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+            splitPane.setTopComponent(tableScroll);
+            splitPane.setBottomComponent(formScroll);
+            splitPane.setResizeWeight(0.5); 
+            splitPane.setBorder(null);
+
+            SwingUtilities.invokeLater(() -> splitPane.setDividerLocation(250));
+
+            add(splitPane, BorderLayout.CENTER);
 
             table.getSelectionModel().addListSelectionListener(e -> {
                 if (e.getValueIsAdjusting()) return;
@@ -1308,7 +1531,7 @@ public class CollegeConnectApp {
 
         void loadColleges() {
             model.setRowCount(0);
-            try (Connection con = getConnection()) {
+            try (Connection con = getConnection()) { 
                 if (con == null) return;
                 PreparedStatement ps = con.prepareStatement(
                         "SELECT college_id, name, state, course, location, fees FROM colleges ORDER BY college_id DESC"
@@ -1316,12 +1539,8 @@ public class CollegeConnectApp {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
                     model.addRow(new Object[]{
-                            rs.getInt("college_id"),
-                            rs.getString("name"),
-                            rs.getString("state"),
-                            rs.getString("course"),
-                            rs.getString("location"),
-                            rs.getDouble("fees")
+                            rs.getInt("college_id"), rs.getString("name"), rs.getString("state"),
+                            rs.getString("course"), rs.getString("location"), rs.getDouble("fees")
                     });
                 }
             } catch (Exception ex) {
@@ -1332,13 +1551,9 @@ public class CollegeConnectApp {
         void loadCollegeToForm(int id) {
             try (Connection con = getConnection()) {
                 if (con == null) return;
-
-                PreparedStatement ps = con.prepareStatement(
-                        "SELECT * FROM colleges WHERE college_id=?"
-                );
+                PreparedStatement ps = con.prepareStatement("SELECT * FROM colleges WHERE college_id=?");
                 ps.setInt(1, id);
                 ResultSet rs = ps.executeQuery();
-
                 if (rs.next()) {
                     txtId.setText(String.valueOf(rs.getInt("college_id")));
                     txtName.setText(rs.getString("name"));
@@ -1349,21 +1564,15 @@ public class CollegeConnectApp {
                     txtImg.setText(rs.getString("image_path"));
                     txtDesc.setText(rs.getString("description"));
                 }
-
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
             }
         }
 
         void updateCollege() {
-            if (txtId.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Select a college row first!");
-                return;
-            }
-
+            if (txtId.getText().trim().isEmpty()) { JOptionPane.showMessageDialog(this, "Select a college row first!"); return; }
             try (Connection con = getConnection()) {
                 if (con == null) return;
-
                 PreparedStatement ps = con.prepareStatement(
                         "UPDATE colleges SET name=?, state=?, course=?, location=?, fees=?, image_path=?, description=? WHERE college_id=?"
                 );
@@ -1375,58 +1584,447 @@ public class CollegeConnectApp {
                 ps.setString(6, cleanPath(txtImg.getText()));
                 ps.setString(7, txtDesc.getText().trim());
                 ps.setInt(8, Integer.parseInt(txtId.getText().trim()));
-
                 ps.executeUpdate();
                 JOptionPane.showMessageDialog(this, "Updated Successfully!");
                 loadColleges();
-
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
-            }
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()); }
         }
 
         void deleteCollege() {
-            if (txtId.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Select a college row first!");
-                return;
-            }
-
+            if (txtId.getText().trim().isEmpty()) { JOptionPane.showMessageDialog(this, "Select a college row first!"); return; }
             int choice = JOptionPane.showConfirmDialog(
-                    this,
-                    "Delete this college?\nThis may also delete related facilities/hostels/placements.",
-                    "Confirm Delete",
-                    JOptionPane.YES_NO_OPTION
+                    this, "Delete this college?\nThis may also delete related facilities/hostels/placements.",
+                    "Confirm Delete", JOptionPane.YES_NO_OPTION
             );
             if (choice != JOptionPane.YES_OPTION) return;
-
             try (Connection con = getConnection()) {
                 if (con == null) return;
-
                 int collegeId = Integer.parseInt(txtId.getText().trim());
 
-                PreparedStatement ps = con.prepareStatement("DELETE FROM facilities WHERE college_id=?");
-                ps.setInt(1, collegeId);
-                ps.executeUpdate();
-
-                ps = con.prepareStatement("DELETE FROM hostels WHERE college_id=?");
-                ps.setInt(1, collegeId);
-                ps.executeUpdate();
-
-                ps = con.prepareStatement("DELETE FROM placements WHERE college_id=?");
-                ps.setInt(1, collegeId);
-                ps.executeUpdate();
-
-                ps = con.prepareStatement("DELETE FROM colleges WHERE college_id=?");
-                ps.setInt(1, collegeId);
-                ps.executeUpdate();
+                PreparedStatement ps = con.prepareStatement("DELETE FROM facilities WHERE college_id=?"); ps.setInt(1, collegeId); ps.executeUpdate();
+                ps = con.prepareStatement("DELETE FROM hostels WHERE college_id=?"); ps.setInt(1, collegeId); ps.executeUpdate();
+                ps = con.prepareStatement("DELETE FROM placements WHERE college_id=?"); ps.setInt(1, collegeId); ps.executeUpdate();
+                ps = con.prepareStatement("DELETE FROM colleges WHERE college_id=?"); ps.setInt(1, collegeId); ps.executeUpdate();
 
                 JOptionPane.showMessageDialog(this, "Deleted Successfully!");
                 txtId.setText(""); txtName.setText(""); txtState.setText(""); txtCourse.setText("");
                 txtLoc.setText(""); txtFees.setText(""); txtImg.setText(""); txtDesc.setText("");
-
                 loadColleges();
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()); }
+        }
+    }
+
+    // =========================================================================
+    // 6. COLLEGE DASHBOARD (Restricted to specific College ID)
+    // =========================================================================
+    static class CollegeDashboard extends JFrame {
+        String user;
+        int collegeId;
+        String collegeName = "Your College";
+
+        public CollegeDashboard(String user, int collegeId) {
+            this.user = user;
+            this.collegeId = collegeId;
+
+            try (Connection con = getConnection()) {
+                if (con != null) {
+                    PreparedStatement ps = con.prepareStatement("SELECT name FROM colleges WHERE college_id = ?");
+                    ps.setInt(1, collegeId);
+                    ResultSet rs = ps.executeQuery();
+                    if (rs.next()) collegeName = rs.getString("name");
+                }
+            } catch (Exception ignored) {}
+
+            setTitle("College Portal - " + collegeName);
+            setSize(1150, 750);
+            setDefaultCloseOperation(EXIT_ON_CLOSE);
+            setLocationRelativeTo(null);
+
+            Theme.applyFrame(this);
+
+            JPanel rightMenu = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+            rightMenu.setOpaque(false);
+            
+            JButton btnLogout = new JButton("Logout");
+            Theme.styleButton(btnLogout, Theme.DANGER, Theme.DANGER_DARK);
+            rightMenu.add(btnLogout);
+
+            add(Theme.appBar(collegeName + " Portal", "Manage your profile, add placements, and view applications", rightMenu), BorderLayout.NORTH);
+
+            JTabbedPane tabs = new JTabbedPane();
+            Theme.styleTabs(tabs);
+
+            tabs.addTab("Update Profile", new CollegeProfileEditorPanel(collegeId));
+            tabs.addTab("Manage Facilities & Hostels", new CollegeManageDetailsPanel(collegeId));
+            tabs.addTab("Add Placements", new CollegePlacementsPanel(collegeId));
+            tabs.addTab("Student Applications", new CollegeApplicationsPanel(collegeName));
+
+            add(tabs, BorderLayout.CENTER);
+
+            btnLogout.addActionListener(e -> {
+                int choice = JOptionPane.showConfirmDialog(this, "Do you want to logout?", "Confirm Logout", JOptionPane.YES_NO_OPTION);
+                if (choice == JOptionPane.YES_OPTION) {
+                    dispose();
+                    new LoginFrame();
+                }
+            });
+
+            setVisible(true);
+        }
+    }
+
+    // =========================================================================
+    // COLLEGE DASHBOARD PANELS
+    // =========================================================================
+    /* 
+        static class CollegeProfileEditorPanel extends JPanel {
+    int myCollegeId;
+    JTextField txtName, txtState, txtCourse, txtLoc, txtFees, txtImg;
+    JTextArea txtDesc;
+
+    public CollegeProfileEditorPanel(int collegeId) {
+        this.myCollegeId = collegeId;
+        setLayout(new BorderLayout(10, 10));
+        setBackground(Theme.BG);
+
+        // 1. Create the Form Panel
+        JPanel form = new JPanel(new GridLayout(7, 2, 10, 12));
+        Theme.styleCard(form);
+
+        txtName = new JTextField(); Theme.styleField(txtName);
+        txtState = new JTextField(); Theme.styleField(txtState);
+        txtCourse = new JTextField(); Theme.styleField(txtCourse);
+        txtLoc = new JTextField(); Theme.styleField(txtLoc);
+        txtFees = new JTextField(); Theme.styleField(txtFees);
+        txtImg = new JTextField(); Theme.styleField(txtImg);
+        txtDesc = new JTextArea(4, 20); 
+        txtDesc.setLineWrap(true); 
+        txtDesc.setWrapStyleWord(true); 
+        Theme.styleTextArea(txtDesc);
+
+        form.add(new JLabel("Name:")); form.add(txtName);
+        form.add(new JLabel("State:")); form.add(txtState);
+        form.add(new JLabel("Course Focus:")); form.add(txtCourse);
+        form.add(new JLabel("Location:")); form.add(txtLoc);
+        form.add(new JLabel("Fees:")); form.add(txtFees);
+        form.add(new JLabel("Image Path:")); form.add(txtImg);
+        form.add(new JLabel("Description:")); form.add(Theme.styleScroll(new JScrollPane(txtDesc)));
+
+        // 2. Create the Button Panel (Bottom)
+        JButton btnUpdate = new JButton("Update My Details");
+        Theme.styleButton(btnUpdate, Theme.PRIMARY, Theme.PRIMARY_DARK);
+        
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        bottom.setBackground(Theme.BG);
+        bottom.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 10)); // Added padding
+        bottom.add(btnUpdate);
+
+        // 3. IMPORTANT: Changed layout positions
+        // Use CENTER for the form so it fills available space
+        add(new JScrollPane(form), BorderLayout.CENTER); 
+        add(bottom, BorderLayout.SOUTH);
+
+        loadMyData();
+        btnUpdate.addActionListener(e -> updateMyData());
+    }
+    
+    // ... loadMyData and updateMyData methods remain the same
+}
+*/
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 1. Profile Editor
+
+    static class CollegeProfileEditorPanel extends JPanel {
+        int myCollegeId;
+        JTextField txtName, txtState, txtCourse, txtLoc, txtFees, txtImg;
+        JTextArea txtDesc;
+
+        public CollegeProfileEditorPanel(int collegeId) {
+            this.myCollegeId = collegeId;
+            setLayout(new BorderLayout(10, 10));
+            setBackground(Theme.BG);
+
+            JPanel form = new JPanel(new GridLayout(7, 2, 10, 12));
+            Theme.styleCard(form);
+
+            txtName = new JTextField(); Theme.styleField(txtName);
+            txtState = new JTextField(); Theme.styleField(txtState);
+            txtCourse = new JTextField(); Theme.styleField(txtCourse);
+            txtLoc = new JTextField(); Theme.styleField(txtLoc);
+            txtFees = new JTextField(); Theme.styleField(txtFees);
+            txtImg = new JTextField(); Theme.styleField(txtImg);
+            txtDesc = new JTextArea(4, 20); txtDesc.setLineWrap(true); txtDesc.setWrapStyleWord(true); Theme.styleTextArea(txtDesc);
+
+            form.add(new JLabel("Name:")); form.add(txtName);
+            form.add(new JLabel("State:")); form.add(txtState);
+            form.add(new JLabel("Course Focus:")); form.add(txtCourse);
+            form.add(new JLabel("Location:")); form.add(txtLoc);
+            form.add(new JLabel("Fees:")); form.add(txtFees);
+            form.add(new JLabel("Image Path:")); form.add(txtImg);
+            form.add(new JLabel("Description:")); form.add(Theme.styleScroll(new JScrollPane(txtDesc)));
+
+            JButton btnUpdate = new JButton("Update My Details");
+            Theme.styleButton(btnUpdate, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            
+            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            bottom.setBackground(Theme.BG);
+            bottom.add(btnUpdate);
+
+            add(form, BorderLayout.NORTH);
+            add(bottom, BorderLayout.SOUTH);
+            
+            add(new JScrollPane(form), BorderLayout.CENTER); 
+        add(bottom, BorderLayout.SOUTH);
+            loadMyData();
+            btnUpdate.addActionListener(e -> updateMyData());
+        }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        void loadMyData() {
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                PreparedStatement ps = con.prepareStatement("SELECT * FROM colleges WHERE college_id=?");
+                ps.setInt(1, myCollegeId);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    txtName.setText(rs.getString("name"));
+                    txtState.setText(rs.getString("state"));
+                    txtCourse.setText(rs.getString("course"));
+                    txtLoc.setText(rs.getString("location"));
+                    txtFees.setText(String.valueOf(rs.getDouble("fees")));
+                    txtImg.setText(rs.getString("image_path"));
+                    txtDesc.setText(rs.getString("description"));
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        void updateMyData() {
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                PreparedStatement ps = con.prepareStatement(
+                        "UPDATE colleges SET name=?, state=?, course=?, location=?, fees=?, image_path=?, description=? WHERE college_id=?"
+                );
+                ps.setString(1, txtName.getText().trim());
+                ps.setString(2, txtState.getText().trim());
+                ps.setString(3, txtCourse.getText().trim());
+                ps.setString(4, txtLoc.getText().trim());
+                ps.setDouble(5, Double.parseDouble(txtFees.getText().trim()));
+                ps.setString(6, cleanPath(txtImg.getText()));
+                ps.setString(7, txtDesc.getText().trim());
+                ps.setInt(8, myCollegeId);
+
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Profile Updated Successfully!");
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+            }
+        }
+    }
+
+    // 2. Manage Facilities & Hostels
+    static class CollegeManageDetailsPanel extends JPanel {
+        int myCollegeId;
+        JTextField fac, hosType, hosFee;
+
+        public CollegeManageDetailsPanel(int collegeId) {
+            this.myCollegeId = collegeId;
+            setLayout(new BorderLayout(10, 10));
+            setBackground(Theme.BG);
+
+            JPanel card = new JPanel(new GridLayout(6, 2, 10, 12));
+            Theme.styleCard(card);
+
+            JLabel b1 = new JLabel("--- Add Facility ---"); Theme.styleLabel(b1);
+            card.add(b1); card.add(new JLabel(""));
+
+            card.add(new JLabel("Facility Name:")); 
+            fac = new JTextField(); Theme.styleField(fac); card.add(fac);
+
+            JButton btnFac = new JButton("Add Facility");
+            Theme.styleButton(btnFac, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            card.add(btnFac); card.add(new JLabel(""));
+
+            JLabel c1 = new JLabel("--- Add Hostel ---"); Theme.styleLabel(c1);
+            card.add(c1); card.add(new JLabel(""));
+
+            card.add(new JLabel("Hostel Room Type:")); 
+            hosType = new JTextField(); Theme.styleField(hosType); card.add(hosType);
+
+            card.add(new JLabel("Hostel Fee (per year):")); 
+            hosFee = new JTextField(); Theme.styleField(hosFee); card.add(hosFee);
+
+            JButton btnHos = new JButton("Add Hostel");
+            Theme.styleButton(btnHos, Theme.ACCENT, Theme.ACCENT_DARK);
+            card.add(btnHos); card.add(new JLabel(""));
+
+            add(card, BorderLayout.NORTH);
+
+            btnFac.addActionListener(e -> addFacility());
+            btnHos.addActionListener(e -> addHostel());
+        }
+
+        void addFacility() {
+            String facility = fac.getText().trim();
+            if (facility.isEmpty()) { JOptionPane.showMessageDialog(this, "Enter Facility Name."); return; }
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                PreparedStatement ps = con.prepareStatement("INSERT INTO facilities (college_id, facility_name) VALUES (?, ?)");
+                ps.setInt(1, myCollegeId);
+                ps.setString(2, facility);
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Facility Added!");
+                fac.setText("");
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()); }
+        }
+
+        void addHostel() {
+            String type = hosType.getText().trim();
+            String feeStr = hosFee.getText().trim();
+            if (type.isEmpty() || feeStr.isEmpty()) { JOptionPane.showMessageDialog(this, "Enter Hostel Type and Fee."); return; }
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                PreparedStatement ps = con.prepareStatement("INSERT INTO hostels (college_id, type, fee) VALUES (?, ?, ?)");
+                ps.setInt(1, myCollegeId);
+                ps.setString(2, type);
+                ps.setDouble(3, Double.parseDouble(feeStr));
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Hostel Added!");
+                hosType.setText(""); hosFee.setText("");
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()); }
+        }
+    }
+
+    // 3. Add Placements
+    static class CollegePlacementsPanel extends JPanel {
+        int myCollegeId;
+        JTextField studName, comp, pkg, studImg;
+
+        public CollegePlacementsPanel(int collegeId) {
+            this.myCollegeId = collegeId;
+            setLayout(new BorderLayout(10, 10));
+            setBackground(Theme.BG);
+
+            JPanel card = new JPanel(new GridLayout(5, 2, 10, 12));
+            Theme.styleCard(card);
+
+            card.add(new JLabel("Student Name:")); 
+            studName = new JTextField(); Theme.styleField(studName); card.add(studName);
+
+            card.add(new JLabel("Company:")); 
+            comp = new JTextField(); Theme.styleField(comp); card.add(comp);
+
+            card.add(new JLabel("Package (LPA):")); 
+            pkg = new JTextField(); Theme.styleField(pkg); card.add(pkg);
+
+            card.add(new JLabel("Student Image Path:")); 
+            studImg = new JTextField(); Theme.styleField(studImg); card.add(studImg);
+
+            JButton btnPlace = new JButton("Add Placement");
+            Theme.styleButton(btnPlace, Theme.WARN, Theme.WARN_DARK);
+            
+            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            bottom.setBackground(Theme.BG);
+            bottom.add(btnPlace);
+
+            add(card, BorderLayout.NORTH);
+            add(bottom, BorderLayout.CENTER);
+
+            btnPlace.addActionListener(e -> addPlacement());
+        }
+
+        void addPlacement() {
+            String student = studName.getText().trim();
+            String company = comp.getText().trim();
+            String packStr = pkg.getText().trim();
+            String imgPath = cleanPath(studImg.getText());
+
+            if (student.isEmpty() || company.isEmpty() || packStr.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Fill Student, Company and Package.");
+                return;
+            }
+
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                PreparedStatement ps = con.prepareStatement(
+                        "INSERT INTO placements (college_id, student_name, company, package_lpa, student_image_path) VALUES (?, ?, ?, ?, ?)"
+                );
+                ps.setInt(1, myCollegeId);
+                ps.setString(2, student);
+                ps.setString(3, company);
+                ps.setDouble(4, Double.parseDouble(packStr));
+                ps.setString(5, imgPath);
+
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Placement Added!");
+                studName.setText(""); comp.setText(""); pkg.setText(""); studImg.setText("");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+            }
+        }
+    }
+
+    // 4. View Applications (With Email and Phone)
+    static class CollegeApplicationsPanel extends JPanel {
+        DefaultTableModel model;
+        JTable table;
+        String myCollegeName;
+
+        public CollegeApplicationsPanel(String collegeName) {
+            this.myCollegeName = collegeName;
+            setLayout(new BorderLayout(10, 10));
+            setBackground(Theme.BG);
+
+            model = new DefaultTableModel(new String[]{"App ID", "Student Username", "Email", "Phone", "Status"}, 0) {
+                @Override public boolean isCellEditable(int row, int column) { return false; }
+            };
+            table = new JTable(model);
+            Theme.styleTable(table);
+
+            loadApplications();
+
+            JButton btnRefresh = new JButton("Refresh Applications");
+            Theme.styleButton(btnRefresh, Theme.PRIMARY, Theme.PRIMARY_DARK);
+            btnRefresh.addActionListener(e -> loadApplications());
+
+            JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            topPanel.setBackground(Theme.BG);
+            topPanel.add(btnRefresh);
+
+            add(topPanel, BorderLayout.NORTH);
+            add(Theme.styleScroll(new JScrollPane(table)), BorderLayout.CENTER);
+        }
+
+        void loadApplications() {
+            model.setRowCount(0);
+            try (Connection con = getConnection()) {
+                if (con == null) return;
+                
+                PreparedStatement ps = con.prepareStatement(
+                        "SELECT a.id, a.student_name, u.email, u.phone " +
+                        "FROM applications a " +
+                        "LEFT JOIN users u ON a.student_name = u.username " +
+                        "WHERE a.college_name = ? ORDER BY a.id DESC"
+                );
+                ps.setString(1, myCollegeName);
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    String email = rs.getString("email");
+                    String phone = rs.getString("phone");
+                    
+                    model.addRow(new Object[]{
+                        rs.getInt("id"), 
+                        rs.getString("student_name"), 
+                        (email != null && !email.isEmpty()) ? email : "Not Provided", 
+                        (phone != null && !phone.isEmpty()) ? phone : "Not Provided", 
+                        "Pending"
+                    });
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
         }
     }
