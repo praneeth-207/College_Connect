@@ -950,11 +950,10 @@ public class code {
                     img.setPreferredSize(new Dimension(120, 120));
                     img.setBorder(BorderFactory.createLineBorder(Theme.BORDER));
                     img.setForeground(Theme.MUTED);
-
                     if (path != null && !path.isEmpty() && new File(path).exists()) {
                         ImageIcon scaled = new ImageIcon(
                                 new ImageIcon(path).getImage().getScaledInstance(
-                                        110, 110, Image.SCALE_SMOOTH
+                                        400, 400, Image.SCALE_SMOOTH
                                 )
                         );
                         img.setIcon(scaled);
@@ -1676,65 +1675,8 @@ public class code {
     // =========================================================================
     // COLLEGE DASHBOARD PANELS
     // =========================================================================
-    /* 
-        static class CollegeProfileEditorPanel extends JPanel {
-    int myCollegeId;
-    JTextField txtName, txtState, txtCourse, txtLoc, txtFees, txtImg;
-    JTextArea txtDesc;
 
-    public CollegeProfileEditorPanel(int collegeId) {
-        this.myCollegeId = collegeId;
-        setLayout(new BorderLayout(10, 10));
-        setBackground(Theme.BG);
-
-        // 1. Create the Form Panel
-        JPanel form = new JPanel(new GridLayout(7, 2, 10, 12));
-        Theme.styleCard(form);
-
-        txtName = new JTextField(); Theme.styleField(txtName);
-        txtState = new JTextField(); Theme.styleField(txtState);
-        txtCourse = new JTextField(); Theme.styleField(txtCourse);
-        txtLoc = new JTextField(); Theme.styleField(txtLoc);
-        txtFees = new JTextField(); Theme.styleField(txtFees);
-        txtImg = new JTextField(); Theme.styleField(txtImg);
-        txtDesc = new JTextArea(4, 20); 
-        txtDesc.setLineWrap(true); 
-        txtDesc.setWrapStyleWord(true); 
-        Theme.styleTextArea(txtDesc);
-
-        form.add(new JLabel("Name:")); form.add(txtName);
-        form.add(new JLabel("State:")); form.add(txtState);
-        form.add(new JLabel("Course Focus:")); form.add(txtCourse);
-        form.add(new JLabel("Location:")); form.add(txtLoc);
-        form.add(new JLabel("Fees:")); form.add(txtFees);
-        form.add(new JLabel("Image Path:")); form.add(txtImg);
-        form.add(new JLabel("Description:")); form.add(Theme.styleScroll(new JScrollPane(txtDesc)));
-
-        // 2. Create the Button Panel (Bottom)
-        JButton btnUpdate = new JButton("Update My Details");
-        Theme.styleButton(btnUpdate, Theme.PRIMARY, Theme.PRIMARY_DARK);
-        
-        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        bottom.setBackground(Theme.BG);
-        bottom.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 10)); // Added padding
-        bottom.add(btnUpdate);
-
-        // 3. IMPORTANT: Changed layout positions
-        // Use CENTER for the form so it fills available space
-        add(new JScrollPane(form), BorderLayout.CENTER); 
-        add(bottom, BorderLayout.SOUTH);
-
-        loadMyData();
-        btnUpdate.addActionListener(e -> updateMyData());
-    }
-    
-    // ... loadMyData and updateMyData methods remain the same
-}
-*/
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // 1. Profile Editor
-
     static class CollegeProfileEditorPanel extends JPanel {
         int myCollegeId;
         JTextField txtName, txtState, txtCourse, txtLoc, txtFees, txtImg;
@@ -1771,16 +1713,12 @@ public class code {
             bottom.setBackground(Theme.BG);
             bottom.add(btnUpdate);
 
-            add(form, BorderLayout.NORTH);
+            add(new JScrollPane(form), BorderLayout.CENTER); 
             add(bottom, BorderLayout.SOUTH);
             
-            add(new JScrollPane(form), BorderLayout.CENTER); 
-        add(bottom, BorderLayout.SOUTH);
             loadMyData();
             btnUpdate.addActionListener(e -> updateMyData());
         }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         void loadMyData() {
             try (Connection con = getConnection()) {
@@ -1825,7 +1763,9 @@ public class code {
         }
     }
 
-    // 2. Manage Facilities & Hostels
+    // -------------------------------------------------------------------------
+    // 2. Manage Facilities & Hostels (FULLY REDESIGNED & FIXED UI)
+    // -------------------------------------------------------------------------
     static class CollegeManageDetailsPanel extends JPanel {
         int myCollegeId;
         JTextField fac, hosType, hosFee;
@@ -1835,33 +1775,58 @@ public class code {
             setLayout(new BorderLayout(10, 10));
             setBackground(Theme.BG);
 
-            JPanel card = new JPanel(new GridLayout(6, 2, 10, 12));
-            Theme.styleCard(card);
+            // Create a wrapper to hold both cards vertically
+            JPanel wrapper = new JPanel();
+            wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
+            wrapper.setBackground(Theme.BG);
+            wrapper.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-            JLabel b1 = new JLabel("--- Add Facility ---"); Theme.styleLabel(b1);
-            card.add(b1); card.add(new JLabel(""));
-
-            card.add(new JLabel("Facility Name:")); 
-            fac = new JTextField(); Theme.styleField(fac); card.add(fac);
+            // --- Card 1: Add Facility ---
+            JPanel facCard = new JPanel(new GridLayout(3, 2, 10, 12));
+            Theme.styleCard(facCard);
+            
+            JLabel lblFacTitle = new JLabel("Add New Facility");
+            lblFacTitle.setFont(Theme.FONT_TITLE);
+            facCard.add(lblFacTitle); facCard.add(new JLabel("")); // Row 1
+            
+            JLabel lblFacName = new JLabel("Facility Name:");
+            Theme.styleLabel(lblFacName);
+            fac = new JTextField(); Theme.styleField(fac);
+            facCard.add(lblFacName); facCard.add(fac); // Row 2
 
             JButton btnFac = new JButton("Add Facility");
             Theme.styleButton(btnFac, Theme.PRIMARY, Theme.PRIMARY_DARK);
-            card.add(btnFac); card.add(new JLabel(""));
+            facCard.add(new JLabel("")); facCard.add(btnFac); // Row 3
+            
+            // --- Card 2: Add Hostel ---
+            JPanel hosCard = new JPanel(new GridLayout(4, 2, 10, 12));
+            Theme.styleCard(hosCard);
 
-            JLabel c1 = new JLabel("--- Add Hostel ---"); Theme.styleLabel(c1);
-            card.add(c1); card.add(new JLabel(""));
+            JLabel lblHosTitle = new JLabel("Add New Hostel");
+            lblHosTitle.setFont(Theme.FONT_TITLE);
+            hosCard.add(lblHosTitle); hosCard.add(new JLabel("")); // Row 1
 
-            card.add(new JLabel("Hostel Room Type:")); 
-            hosType = new JTextField(); Theme.styleField(hosType); card.add(hosType);
+            JLabel lblHosType = new JLabel("Hostel Room Type:");
+            Theme.styleLabel(lblHosType);
+            hosType = new JTextField(); Theme.styleField(hosType);
+            hosCard.add(lblHosType); hosCard.add(hosType); // Row 2
 
-            card.add(new JLabel("Hostel Fee (per year):")); 
-            hosFee = new JTextField(); Theme.styleField(hosFee); card.add(hosFee);
+            JLabel lblHosFee = new JLabel("Hostel Fee (per year):");
+            Theme.styleLabel(lblHosFee);
+            hosFee = new JTextField(); Theme.styleField(hosFee);
+            hosCard.add(lblHosFee); hosCard.add(hosFee); // Row 3
 
             JButton btnHos = new JButton("Add Hostel");
             Theme.styleButton(btnHos, Theme.ACCENT, Theme.ACCENT_DARK);
-            card.add(btnHos); card.add(new JLabel(""));
+            hosCard.add(new JLabel("")); hosCard.add(btnHos); // Row 4
 
-            add(card, BorderLayout.NORTH);
+            // Add cards to wrapper
+            wrapper.add(facCard);
+            wrapper.add(Box.createVerticalStrut(20)); // Spacing between the cards
+            wrapper.add(hosCard);
+
+            // Add to the top of the panel so it doesn't stretch weirdly
+            add(wrapper, BorderLayout.NORTH);
 
             btnFac.addActionListener(e -> addFacility());
             btnHos.addActionListener(e -> addHostel());
@@ -1967,7 +1932,7 @@ public class code {
         }
     }
 
-    // 4. View Applications (With Email and Phone)
+    // 4. View Applications
     static class CollegeApplicationsPanel extends JPanel {
         DefaultTableModel model;
         JTable table;
