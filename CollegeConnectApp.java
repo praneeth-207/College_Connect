@@ -1533,7 +1533,7 @@ public class CollegeConnectApp {
             try (Connection con = getConnection()) { 
                 if (con == null) return;
                 PreparedStatement ps = con.prepareStatement(
-                        "SELECT college_id, name, state, course, location, fees FROM colleges ORDER BY college_id DESC"
+                        "SELECT college_id, name, state, course, location, fees FROM colleges ORDER BY college_id ASC"
                 );
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
